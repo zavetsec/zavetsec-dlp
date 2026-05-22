@@ -56,6 +56,7 @@
 - [Intended Use](#intended-use)
 - [Performance](#performance)
 - [Known Limitations](#known-limitations)
+- [Duplicate Hostnames](#duplicate-hostnames)
 - [Roadmap](#roadmap)
 - [Changelog](#changelog)
 
@@ -126,8 +127,8 @@ mkdir C:\DlpServer
 :: Extract DlpServer-publish.zip contents into C:\DlpServer
 
 :: 2. Create config from template
-copy C:\DlpServerppsettings.example.json C:\DlpServerppsettings.json
-notepad C:\DlpServerppsettings.json
+copy C:\DlpServer ppsettings.example.json C:\DlpServer ppsettings.json
+notepad C:\DlpServer ppsettings.json
 ```
 
 Set these two values in `appsettings.json`:
@@ -200,7 +201,7 @@ If you built the server yourself and want to share it, make sure no secrets are 
 
 ```cmd
 :: Remove secrets before archiving
-del "DlpServer\publishppsettings.json"
+del "DlpServer\publish ppsettings.json"
 del "DlpServer\publish\*.pfx"
 :: Verify no database files
 dir "DlpServer\publish\*.db"
@@ -227,8 +228,10 @@ powershell Compress-Archive -Path "DlpServer\publish\*" ^
 | **Reliable Delivery** | Batched event shipping, 50 MB disk buffer when server is unreachable, exponential backoff |
 | **HTTPS** | Self-signed certificate auto-generated on first run (RSA 2048, SHA-256, 10 years) |
 | **Remote Control** | Start / Stop / Restart / Uninstall agents directly from the dashboard |
+| **Three-color Status** | 🟢 Online (monitoring active) · 🟡 Stopped (process alive, monitoring paused) · ⚫ Offline |
 | **Agent Lifecycle Events** | `AGENT_ONLINE` on first connection, `AGENT_REMOVED` on dashboard removal, `AGENT_UNINSTALLED` on successful uninstall |
-| **Unique Agent ID** | Each agent gets a persistent ID on first run — prevents conflicts when multiple machines share the same hostname |
+| **Unique Agent ID** | Each agent generates a persistent 16-char hex ID on first run; stored in `config.json`, sent as `X-Agent-Id` header; scoped to events, screenshots, and commands — fully supports multiple machines with identical hostnames |
+| **Watchdog** | Checks every 60 s that internal components are alive; re-registers the scheduled task if deleted by an insider |
 | **Brute Force Protection** | IP blocked for 15 minutes after 5 failed login attempts |
 | **Rate Limiting** | 1,000 requests/minute per IP on agent endpoints |
 | **Telegram Alerts** | Configurable per-module notifications, rate-limited, filter by module type |
@@ -942,11 +945,18 @@ Auto-refresh every 30 seconds. Timestamps shown in the browser's local timezone.
 
 ### Agents Tab
 
-- Cards showing Online/Offline status, **20 agents per page**
-- Online = last heartbeat less than 2 minutes ago (updated on every poll cycle)
+- Cards showing agent status, **20 agents per page**
+
+  | Indicator | Meaning |
+  |---|---|
+  | 🟢 Green | Online — process alive, monitoring active |
+  | 🟡 Yellow | Stopped — process alive but monitoring paused (after Stop command) |
+  | ⚫ Grey | Offline — no heartbeat for more than 2 minutes |
+
+- Status is reported by the agent on every heartbeat poll via `?status=active/stopped`
 - Admin buttons: Restart / Stop / Uninstall — available for both Online and Offline agents
-- Offline-only: Remove from list (removes from dashboard without uninstalling)
-- Per-host data: 📷 Screenshots / 📋 Events — delete server data for that host
+- Offline-only: **Remove from list** — removes from dashboard without uninstalling the agent
+- Per-agent Events/Screenshots buttons filter data by the specific `agent_id` — no mixing between agents sharing the same hostname
 - Broadcast panel — send commands to all agents at once
 - Server data management panel (admin only)
 - DB size and screenshot disk usage (admin only)
@@ -1235,7 +1245,8 @@ ZavetSec DLP is a monitoring tool, not a remote access framework. The following 
 - **No privilege escalation** — the agent runs as the logged-in user or SYSTEM (for boot persistence only). It does not attempt to elevate privileges beyond what the scheduled task grants.
 - **No lateral movement** — the agent communicates only with the configured `serverUrl`. No peer-to-peer, no broadcast.
 - **No persistence outside scheduled tasks** — removal is clean: delete the scheduled task and the install folder.
-- **Encrypted local logs** — all local logs are AES-256-CBC encrypted. Without the machine-specific DPAPI key, captured data is unreadable even if the disk is removed.
+- **Encrypted local logs** — all local logs are AES-256-CBC encrypted.
+- **Watchdog** — checks every 60 seconds that event and screenshot shippers are running; re-registers the ONLOGON scheduled task if an insider deletes it. Note: does not protect against a local Administrator killing the process — that requires a kernel-mode component (on the roadmap). Without the machine-specific DPAPI key, captured data is unreadable even if the disk is removed.
 - **API key required** — all agent→server communication requires a pre-shared API key. The server rejects unauthenticated requests with HTTP 401.
 - **Self-hosted only** — no cloud component, no telemetry, no license server.
 
@@ -1315,6 +1326,23 @@ Typical resource usage on a monitored workstation (measured on Windows 10, idle 
 
 ---
 
+## Duplicate Hostnames
+
+Multiple machines with the same hostname are fully supported. Each agent generates a unique **16-character hex `agentId`** on first run, stored in `config.json` and sent as `X-Agent-Id` header on every request.
+
+| Component | Behavior with duplicate hostnames |
+|---|---|
+| `hosts` table | Primary key is `(agent_id, host)` — each agent has its own row |
+| Events | Every event stores `agent_id` — dashboard filters by specific agent |
+| Screenshots | Every screenshot stores `agent_id` — per-agent filtering |
+| Commands | Stop/Start/Uninstall targets the specific `agent_id` only |
+| Dashboard | Each installation shown as a separate card with `id:` displayed |
+| Remove / Uninstall | Operates on `(agent_id, host)` pair — does not affect other agents |
+
+> Old agent binaries without `agentId` fall back to hostname-only behavior for backward compatibility.
+
+---
+
 ## Known Limitations
 
 - **Shared API key** — all agents use the same API key; each agent has a unique `agentId` for identification, but key-level revocation requires rotating the key for all agents. Per-agent keys are on the roadmap
@@ -1349,7 +1377,8 @@ Community contributions and pull requests are welcome.
 - [ ] **Agent auto-update** — push new agent binary from server via command channel
 - [ ] **Alert escalation** — multi-level alerts (info → warning → critical) with email support
 - [ ] **Screenshot compression policies** — tiered storage, per-host quotas, archiving
-- [ ] **Agent watchdog** — detect and recover from agent process termination
+- [x] **Agent watchdog** — checks every 60s that shippers are alive, re-registers scheduled task if deleted (basic tamper detection)
+- [ ] **Advanced tamper resistance** — protected process, kernel callbacks, anti-uninstall (requires driver/kernel-mode component)
 
 ---
 
