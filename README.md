@@ -98,7 +98,7 @@ Default credentials: `admin` / `admin` — you will be forced to change the pass
 
 ## Dashboard Preview
 
-<img width="1901" height="916" alt="zavetsecdlpserver" src="https://github.com/user-attachments/assets/dd205cdc-6076-41f3-aea1-da83356dbcee" />
+> 📸 Screenshots coming soon. Deploy the server and add your own to `docs/screenshots/`.
 
 <!--
 Once you have the dashboard running, replace these placeholders:
@@ -127,8 +127,8 @@ mkdir C:\DlpServer
 :: Extract DlpServer-publish.zip contents into C:\DlpServer
 
 :: 2. Create config from template
-copy C:\DlpServer ppsettings.example.json C:\DlpServer ppsettings.json
-notepad C:\DlpServer ppsettings.json
+copy C:\DlpServerappsettings.example.json C:\DlpServerappsettings.json
+notepad C:\DlpServerappsettings.json
 ```
 
 Set these two values in `appsettings.json`:
@@ -201,7 +201,7 @@ If you built the server yourself and want to share it, make sure no secrets are 
 
 ```cmd
 :: Remove secrets before archiving
-del "DlpServer\publish ppsettings.json"
+del "DlpServer\publishappsettings.json"
 del "DlpServer\publish\*.pfx"
 :: Verify no database files
 dir "DlpServer\publish\*.db"
