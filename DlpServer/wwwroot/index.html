@@ -1174,7 +1174,7 @@ async function loadAgents(){
           actDiv.appendChild(mkBtn('btn-green',t('btn.start'),()=>confirmCmd(a.host,'start',t('confirm.startAgent'),t('confirm.startAgentDesc'))));
           actDiv.appendChild(mkBtn('btn-ghost',t('btn.restart'),()=>confirmCmd(a.host,'restart',t('confirm.restartAgent'),'')));
           actDiv.appendChild(mkBtn('btn-red',t('btn.uninstall'),()=>confirmCmd(a.host,'uninstall',t('confirm.uninstallAgent'),t('confirm.uninstallAgentDesc'))));
-          actDiv.appendChild(mkBtn('btn-ghost','\ud83d\uddd1 '+t('btn.fromList'),()=>removeAgentFromList(a.host)));
+          actDiv.appendChild(mkBtn('btn-ghost','\ud83d\uddd1 '+t('btn.fromList'),()=>removeAgentFromList(a.host, a.agentId||a.AgentId||""));
         }
         actDiv.appendChild(mkBtn('btn-ghost','\ud83d\udcf7 '+t('btn.screenshots'),()=>confirmDataDelete('host-screenshots',t('data.deleteSs')+' '+a.host,t('data.deleteSsDesc'),a.host)));
         actDiv.appendChild(mkBtn('btn-ghost','\ud83d\udccb '+t('btn.events'),()=>confirmDataDelete('host-events',t('data.deleteEv')+' '+a.host,t('data.deleteEvDesc'),a.host)));
@@ -1214,9 +1214,14 @@ async function doConfirmedCmd(){
     if(!r.ok)throw new Error(await r.text());const d=await r.json();showToast(t('toast.commandSent',{cmd,id:d.id}),'success');setTimeout(loadAgents,1000);}
   catch(e){showToast(e.message,'error');}
 }
-async function removeAgentFromList(host){
+async function removeAgentFromList(host, agentId){
   if(!confirm(t('toast.agentRemoved',{host})))return;
-  try{const r=await authFetch('/api/agents/'+encodeURIComponent(host),{method:'DELETE'});if(!r.ok)throw new Error(await r.text());showToast(t('toast.agentRemoved',{host}),'success');loadAgents();}
+  try{
+    const url='/api/agents/'+encodeURIComponent(host)+(agentId?'?agentId='+encodeURIComponent(agentId):'');
+    const r=await authFetch(url,{method:'DELETE'});
+    if(!r.ok)throw new Error(await r.text());
+    showToast(t('toast.agentRemoved',{host}),'success');loadAgents();
+  }
   catch(e){showToast(e.message,'error');}
 }
 function confirmDataDelete(type,title,desc,host){
