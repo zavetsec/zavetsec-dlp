@@ -29,11 +29,30 @@ namespace ZavetSec.DlpAgent
             AutoLog             = false;
         }
 
-        protected override void OnStart(string[] args) => StartInternal();
-        protected override void OnStop()               => StopInternal();
+        protected override void OnStart(string[] args)
+        {
+            StartInternal();
+            InitCommandPoller();
+        }
+        protected override void OnStop() => StopInternal();
 
-        public void StartDebug() => StartInternal();
-        public void StopDebug()  => StopInternal();
+        public void StartDebug()
+        {
+            StartInternal();
+            InitCommandPoller();
+        }
+        public void StopDebug() => StopInternal();
+
+        private void InitCommandPoller()
+        {
+            if (_commandPoller != null) return; // already running
+            _commandPoller = new CommandPoller(
+                stopCallback:    () => StopInternal(),
+                startCallback:   () => StartInternal(),
+                restartCallback: () => { StopInternal(); Thread.Sleep(500); StartInternal(); }
+            );
+            _commandPoller.Start();
+        }
 
         private void StartInternal()
         {
@@ -86,14 +105,8 @@ namespace ZavetSec.DlpAgent
             _process = new ProcessMonitor();
             _process.Start();
 
-            // CommandPoller — опрос команд каждые FlushSeconds секунд.
-            // В GetPendingCommands теперь автоматически обновляется last_seen (heartbeat).
-            _commandPoller = new CommandPoller(
-                stopCallback:    () => StopInternal(),
-                startCallback:   () => StartInternal(),
-                restartCallback: () => { StopInternal(); StartInternal(); }
-            );
-            _commandPoller.Start();
+            // CommandPoller запускается один раз при первом старте (см. ниже в OnStart/StartDebug).
+            // При повторном StartInternal (команда start) поллер уже работает — не пересоздаём.
 
             // Heartbeat каждые 60 сек — обновляет last_seen на сервере
             // чтобы Online-статус в дашборде не мигал при отсутствии активности.
@@ -113,7 +126,9 @@ namespace ZavetSec.DlpAgent
             _heartbeatTimer?.Dispose();
             _heartbeatTimer = null;
 
-            _commandPoller?.Stop();
+            // CommandPoller намеренно НЕ останавливается при Stop —
+            // иначе агент не получит команду Start с сервера.
+            // Поллер останавливается только при Restart/Uninstall/выходе процесса.
 
             _clipboard?.Stop();
             _keylogger?.Stop();
