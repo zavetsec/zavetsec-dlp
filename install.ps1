@@ -163,8 +163,17 @@ try { $null = & schtasks /create /tn $TaskName1 /tr $exePath /sc ONLOGON /rl HIG
 # It will re-launch correctly when user logs in via the ONLOGON task
 try { $null = & schtasks /create /tn $TaskName2 /tr $exePath /sc ONSTART /ru SYSTEM /rl HIGHEST /f 2>&1 } catch { }
 
-# Start immediately
-try { $null = & schtasks /run /tn $TaskName1 2>&1 } catch { }
+# Watchdog task — runs every 5 minutes as SYSTEM
+# Restarts the agent if the process is not running (crash recovery)
+$TaskNameWD = "ZavetSec DLP Watchdog"
+$wdScript   = "if (!(Get-Process ZavetSecDlpAgent -ErrorAction SilentlyContinue)) { " +
+              "Start-Process '$InstallDir\$AgentExe' -ArgumentList '--task-mode' }"
+$wdCmd      = "powershell -WindowStyle Hidden -Command `"$wdScript`""
+try { $null = & schtasks /create /tn $TaskNameWD /tr $wdCmd /sc MINUTE /mo 5 /ru SYSTEM /rl HIGHEST /f 2>&1 } catch { }
+
+# Start immediately — launch directly since schtasks /run
+# does not work for ONLOGON tasks in interactive sessions
+Start-Process -FilePath "$InstallDir\$AgentExe" -ArgumentList "--task-mode" -WindowStyle Hidden
 Start-Sleep -Seconds 3
 
 # Verify
