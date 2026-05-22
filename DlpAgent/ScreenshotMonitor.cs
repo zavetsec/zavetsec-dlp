@@ -156,6 +156,10 @@ namespace ZavetSec.DlpAgent
 
                         bool encrypt = Config.Current.ScreenshotEncrypt.Enabled;
 
+                        // Recreate directory just before writing —
+                        // ScreenshotShipper may have deleted it after previous upload
+                        Directory.CreateDirectory(dateDir);
+
                         if (encrypt)
                         {
                             // Сохранить во временный буфер, зашифровать, записать как .enc

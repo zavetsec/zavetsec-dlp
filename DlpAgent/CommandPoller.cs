@@ -23,6 +23,9 @@ namespace ZavetSec.DlpAgent
         private System.Threading.Timer _timer;
         private volatile bool _stopping = false;
 
+        // Set by DlpService — true = monitoring active, false = stopped
+        public static volatile bool MonitoringActive = true;
+
         // Ленивая инициализация: HttpClient создаётся при первом использовании,
         // когда Config.Current уже точно инициализирован.
         private static HttpClient _httpLazy = null;
@@ -90,7 +93,9 @@ namespace ZavetSec.DlpAgent
             {
                 string serverUrl = Config.Current.Shipper.ServerUrl.TrimEnd('/');
                 string host      = Uri.EscapeDataString(Environment.MachineName);
-                string json      = _http.GetStringAsync($"{serverUrl}/api/commands/{host}").Result;
+                string monStatus = MonitoringActive ? "active" : "stopped";
+                string json      = _http.GetStringAsync(
+                    $"{serverUrl}/api/commands/{host}?status={monStatus}").Result;
 
                 var commands = JsonSerializer.Deserialize<List<RemoteCommand>>(json,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });

@@ -76,6 +76,7 @@ namespace ZavetSec.DlpAgent
         private void StartInternal()
         {
             _intentionallyStopped = false;  // allow watchdog to run
+            CommandPoller.MonitoringActive = true;   // tell heartbeat we are active
             Config.InitSilent();
 
             Logger.Init(
@@ -183,6 +184,7 @@ namespace ZavetSec.DlpAgent
         private void StopInternal()
         {
             _intentionallyStopped = true;   // tell watchdog to stand down
+            CommandPoller.MonitoringActive = false;  // tell heartbeat we are stopped
 
             _watchdogTimer?.Dispose();
             _watchdogTimer = null;

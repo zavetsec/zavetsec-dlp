@@ -192,7 +192,8 @@ namespace ZavetSec.DlpAgent
                 if (string.IsNullOrEmpty(value)) continue;
 
                 // Record Name line -> set current hostname
-                if (key == "record name")
+                // English: "Record Name" / Russian: "Имя записи"
+                if (key == "record name" || key == "имя записи")
                 {
                     currentHost = value.TrimEnd('.');
                     // Skip localhost, broadcast, mDNS
@@ -204,8 +205,12 @@ namespace ZavetSec.DlpAgent
                 if (currentHost == null) continue;
 
                 // A record (IPv4) or AAAA record (IPv6)
+                // English: "A (Host) Record" / Russian: "Запись (узел)"
                 if (key == "a (host) record" || key == "aaaa record" ||
-                    key == "a  (host) record")
+                    key == "a  (host) record" ||
+                    key == "запись (узел)" ||
+                    key == "запись a (узел)" ||
+                    key == "запись aaaa")
                 {
                     if (!IsValidIp(value)) continue;
 
@@ -236,7 +241,8 @@ namespace ZavetSec.DlpAgent
                     RedirectStandardOutput = true,
                     UseShellExecute        = false,
                     CreateNoWindow         = true,
-                    StandardOutputEncoding = System.Text.Encoding.GetEncoding(866)
+                    StandardOutputEncoding = System.Text.Encoding.GetEncoding(
+                        System.Globalization.CultureInfo.CurrentCulture.TextInfo.OEMCodePage)
                 };
                 using (var p = Process.Start(psi))
                 {
