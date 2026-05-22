@@ -122,10 +122,11 @@ app.Use(async (ctx, next) =>
 
     bool isPublic =
         path == "/api/auth/login" ||
-        path.StartsWith("/api/auth/") ||
+        path == "/api/auth/me"    ||   // token validation — works without session
         path == "/" || path.StartsWith("/assets/") ||
         (path.StartsWith("/api/screenshots/") && path.EndsWith("/image")) ||
         !path.StartsWith("/api/");
+    // Note: /api/auth/change-password and /api/auth/logout require a valid session
 
     bool isAgentEndpoint =
         path.StartsWith("/api/ingest") ||
