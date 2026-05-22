@@ -33,7 +33,7 @@ public class EventStore
         Exec(conn, "CREATE INDEX IF NOT EXISTS idx_ts     ON events(ts DESC)");
         Exec(conn, "CREATE INDEX IF NOT EXISTS idx_module ON events(module)");
         Exec(conn, "CREATE INDEX IF NOT EXISTS idx_host   ON events(host)");
-        Exec(conn, "CREATE TABLE IF NOT EXISTS hosts (host TEXT NOT NULL, agent_id TEXT NOT NULL DEFAULT '', last_seen TEXT NOT NULL, first_seen TEXT NOT NULL DEFAULT '', PRIMARY KEY (agent_id, host))");
+        Exec(conn, "CREATE TABLE IF NOT EXISTS hosts (host TEXT NOT NULL, agent_id TEXT NOT NULL DEFAULT '', last_seen TEXT NOT NULL, first_seen TEXT NOT NULL DEFAULT '', agent_status TEXT NOT NULL DEFAULT 'active', PRIMARY KEY (agent_id, host))");
         Exec(conn, "CREATE TABLE IF NOT EXISTS screenshots (" +
             "id INTEGER PRIMARY KEY AUTOINCREMENT," +
             "ts TEXT NOT NULL, host TEXT NOT NULL, user_name TEXT NOT NULL," +
@@ -106,7 +106,7 @@ public class EventStore
     }
 
     // Версия схемы БД — увеличивать при каждом изменении схемы
-    private const int DbSchemaVersion = 6;
+    private const int DbSchemaVersion = 8;
 
     /// Выполняет все необходимые миграции для существующих баз данных.
     /// Безопасно вызывать на любой версии БД — применяются только нужные.
@@ -193,6 +193,28 @@ public class EventStore
                 Exec(conn, "ALTER TABLE hosts_new RENAME TO hosts");
             }
             catch { /* fresh install - table already has new schema */ }
+        }
+
+        if (currentVersion < 7)
+        {
+            // v7: add agent_id to events, screenshots, commands; add agent_status to hosts
+            // events
+            try { Exec(conn, "ALTER TABLE events ADD COLUMN agent_id TEXT NOT NULL DEFAULT ''"); } catch { }
+            try { Exec(conn, "CREATE INDEX IF NOT EXISTS idx_events_agent ON events(agent_id)"); } catch { }
+            // screenshots
+            try { Exec(conn, "ALTER TABLE screenshots ADD COLUMN agent_id TEXT NOT NULL DEFAULT ''"); } catch { }
+            try { Exec(conn, "CREATE INDEX IF NOT EXISTS idx_ss_agent ON screenshots(agent_id)"); } catch { }
+            // commands
+            try { Exec(conn, "ALTER TABLE commands ADD COLUMN agent_id TEXT NOT NULL DEFAULT ''"); } catch { }
+            try { Exec(conn, "CREATE INDEX IF NOT EXISTS idx_cmd_agent ON commands(agent_id)"); } catch { }
+            // hosts: agent monitoring status
+            try { Exec(conn, "ALTER TABLE hosts ADD COLUMN agent_status TEXT NOT NULL DEFAULT 'active'"); } catch { }
+        }
+
+        if (currentVersion < 8)
+        {
+            // v8: add agent_status column to hosts table
+            try { Exec(conn, "ALTER TABLE hosts ADD COLUMN agent_status TEXT NOT NULL DEFAULT 'active'"); } catch { }
         }
 
         // Обновить версию схемы
@@ -484,13 +506,13 @@ public class EventStore
     }
 
     // ── Events ────────────────────────────────────────────────────────────
-    public void InsertBatch(IEnumerable<LogEvent> events)
+    public void InsertBatch(IEnumerable<LogEvent> events, string agentId = "")
     {
         using var conn = Open();
         using var tx   = conn.BeginTransaction();
         var cmd = conn.CreateCommand();
-        cmd.CommandText = "INSERT INTO events (ts,host,user_name,module,msg,data,received_at) " +
-            "VALUES ($ts,$host,$user,$module,$msg,$data,$received)";
+        cmd.CommandText = "INSERT INTO events (ts,host,user_name,module,msg,data,received_at,agent_id) " +
+            "VALUES ($ts,$host,$user,$module,$msg,$data,$received,$aid)";
         var pTs   = cmd.Parameters.Add("$ts",       SqliteType.Text);
         var pHost = cmd.Parameters.Add("$host",     SqliteType.Text);
         var pUser = cmd.Parameters.Add("$user",     SqliteType.Text);
@@ -498,6 +520,7 @@ public class EventStore
         var pMsg  = cmd.Parameters.Add("$msg",      SqliteType.Text);
         var pData = cmd.Parameters.Add("$data",     SqliteType.Text);
         var pRec  = cmd.Parameters.Add("$received", SqliteType.Text);
+        var pAid  = cmd.Parameters.Add("$aid",      SqliteType.Text);
         // Only update last_seen for known hosts.
         // New host registration happens in GetPendingCommands (heartbeat).
         var ch = conn.CreateCommand();
@@ -509,7 +532,7 @@ public class EventStore
         {
             pTs.Value=ev.Ts; pHost.Value=ev.Host; pUser.Value=ev.User;
             pMod.Value=ev.Module; pMsg.Value=ev.Msg;
-            pData.Value=ev.Data??""; pRec.Value=received;
+            pData.Value=ev.Data??""; pRec.Value=received; pAid.Value=agentId;
             cmd.ExecuteNonQuery();
             phHost.Value=ev.Host; phTs.Value=received;
             ch.ExecuteNonQuery();
@@ -626,8 +649,8 @@ public class EventStore
         using var conn = Open();
         var cmd = conn.CreateCommand();
         cmd.CommandText = "INSERT INTO screenshots " +
-            "(ts,host,user_name,trigger,window,resolution,filename,size_bytes,received_at) " +
-            "VALUES ($ts,$host,$user,$trigger,$window,$res,$file,$size,$rec); " +
+            "(ts,host,user_name,trigger,window,resolution,filename,size_bytes,received_at,agent_id) " +
+            "VALUES ($ts,$host,$user,$trigger,$window,$res,$file,$size,$rec,$aid); " +
             "SELECT last_insert_rowid();";
         cmd.Parameters.AddWithValue("$ts",      upload.Ts);
         cmd.Parameters.AddWithValue("$host",    upload.Host);
@@ -639,6 +662,7 @@ public class EventStore
             Path.Combine(DateTime.UtcNow.ToString("yyyyMMdd"), upload.Host, filename));
         cmd.Parameters.AddWithValue("$size", jpeg.Length);
         cmd.Parameters.AddWithValue("$rec",  DateTime.UtcNow.ToString("o"));
+        cmd.Parameters.AddWithValue("$aid",  upload.AgentId ?? "");
         return (long)(cmd.ExecuteScalar() ?? 0L);
     }
 
@@ -648,6 +672,8 @@ public class EventStore
         var conds = new List<string>(); var parms = new List<(string,object)>();
         if (!string.IsNullOrWhiteSpace(f.Host))
         { conds.Add("host=$host"); parms.Add(("$host", f.Host)); }
+        if (!string.IsNullOrWhiteSpace(f.AgentId))
+        { conds.Add("agent_id=$agentId"); parms.Add(("$agentId", f.AgentId)); }
         if (!string.IsNullOrWhiteSpace(f.From))
         { conds.Add("ts>=$from"); parms.Add(("$from", f.From)); }
         if (!string.IsNullOrWhiteSpace(f.To))
@@ -766,24 +792,28 @@ public class EventStore
     }
 
     // ── Commands ──────────────────────────────────────────────────────────
-    public long CreateCommand(string host, string command, string payload = "")
+    public long CreateCommand(string host, string command, string payload = "",
+                              string agentId = "")
     {
         using var conn = Open();
         var cmd = conn.CreateCommand();
-        cmd.CommandText = "INSERT INTO commands (host,command,payload,status,created_at) " +
-            "VALUES ($host,$cmd,$payload,'pending',$ts); SELECT last_insert_rowid();";
+        cmd.CommandText = "INSERT INTO commands (host,command,payload,status,created_at,agent_id) " +
+            "VALUES ($host,$cmd,$payload,'pending',$ts,$aid); SELECT last_insert_rowid();";
         cmd.Parameters.AddWithValue("$host",    host);
         cmd.Parameters.AddWithValue("$cmd",     command);
         cmd.Parameters.AddWithValue("$payload", payload ?? "");
         cmd.Parameters.AddWithValue("$ts",      DateTime.UtcNow.ToString("o"));
+        cmd.Parameters.AddWithValue("$aid",     agentId);
         return (long)(cmd.ExecuteScalar() ?? 0L);
     }
 
-    public List<AgentCommand> GetPendingCommands(string host, string agentId = "")
+    public List<AgentCommand> GetPendingCommands(string host, string agentId = "",
+                                              string agentStatus = "active")
     {
         using var conn = Open();
-        string ts  = DateTime.UtcNow.ToString("o");
-        string aid = string.IsNullOrWhiteSpace(agentId) ? host : agentId;
+        string ts     = DateTime.UtcNow.ToString("o");
+        string aid    = string.IsNullOrWhiteSpace(agentId) ? host : agentId;
+        string status = agentStatus == "stopped" ? "stopped" : "active";
 
         // Check if this is a brand-new agent (no row with this agent_id)
         var existCmd = conn.CreateCommand();
@@ -791,15 +821,16 @@ public class EventStore
         existCmd.Parameters.AddWithValue("$aid", aid);
         bool isNew = (long)existCmd.ExecuteScalar()! == 0;
 
-        // Heartbeat — upsert by agent_id
+        // Heartbeat — upsert by agent_id, store monitoring status
         var hb = conn.CreateCommand();
-        hb.CommandText = "INSERT INTO hosts (host, agent_id, last_seen, first_seen) " +
-            "VALUES ($host, $aid, $ts, $ts) " +
+        hb.CommandText = "INSERT INTO hosts (host, agent_id, last_seen, first_seen, agent_status) " +
+            "VALUES ($host, $aid, $ts, $ts, $status) " +
             "ON CONFLICT(agent_id, host) DO UPDATE SET last_seen=excluded.last_seen, " +
-            "host=excluded.host";
-        hb.Parameters.AddWithValue("$host", host);
-        hb.Parameters.AddWithValue("$aid",  aid);
-        hb.Parameters.AddWithValue("$ts",   ts);
+            "host=excluded.host, agent_status=excluded.agent_status";
+        hb.Parameters.AddWithValue("$host",   host);
+        hb.Parameters.AddWithValue("$aid",    aid);
+        hb.Parameters.AddWithValue("$ts",     ts);
+        hb.Parameters.AddWithValue("$status", status);
         hb.ExecuteNonQuery();
 
         // Fire AGENT_ONLINE event on first appearance
@@ -888,7 +919,8 @@ public class EventStore
         using var conn = Open();
         var cmd = conn.CreateCommand();
         cmd.CommandText = "SELECT h.host, h.agent_id, h.first_seen, h.last_seen," +
-            "(SELECT COUNT(*) FROM events e WHERE e.host=h.host) as ev_count " +
+            "(SELECT COUNT(*) FROM events e WHERE e.host=h.host) as ev_count, " +
+            "h.agent_status " +
             "FROM hosts h ORDER BY h.last_seen DESC";
         var now  = DateTimeOffset.UtcNow;
         var list = new List<AgentStatus>();
@@ -902,10 +934,12 @@ public class EventStore
             bool online = false;
             if (DateTimeOffset.TryParse(ls, out var dto))
                 online = (now - dto).TotalMinutes < 2;
+            string agentStatusVal = r.IsDBNull(5) ? "active" : r.GetString(5);
             list.Add(new AgentStatus{
                 Host=r.GetString(0), LastSeen=ls,
                 AgentId=agentId, FirstSeen=firstSeen,
-                Online=online, Events=r.GetInt64(4) });
+                Online=online, Events=r.GetInt64(4),
+                MonitorStatus=agentStatusVal });
         }
         return list;
     }
@@ -945,20 +979,22 @@ public class EventStore
     }
 
     // ── System event helper ──────────────────────────────────────────────
-    public void InsertSystemEvent(string host, string module, string msg, string data = "")
+    public void InsertSystemEvent(string host, string module, string msg,
+                                  string data = "", string agentId = "")
     {
         try
         {
             using var conn = Open();
             string ts = DateTime.UtcNow.ToString("o");
             var cmd = conn.CreateCommand();
-            cmd.CommandText = "INSERT INTO events (ts,host,user_name,module,msg,data,received_at) " +
-                "VALUES ($ts,$host,'system',$mod,$msg,$data,$ts)";
+            cmd.CommandText = "INSERT INTO events (ts,host,user_name,module,msg,data,received_at,agent_id) " +
+                "VALUES ($ts,$host,'system',$mod,$msg,$data,$ts,$aid)";
             cmd.Parameters.AddWithValue("$ts",   ts);
             cmd.Parameters.AddWithValue("$host", host);
             cmd.Parameters.AddWithValue("$mod",  module);
             cmd.Parameters.AddWithValue("$msg",  msg);
             cmd.Parameters.AddWithValue("$data", data);
+            cmd.Parameters.AddWithValue("$aid",  agentId);
             cmd.ExecuteNonQuery();
         }
         catch { /* system events must not crash main flow */ }
@@ -997,6 +1033,8 @@ public class EventStore
         { conds.Add("module=$module"); parms.Add(("$module", f.Module)); }
         if (!string.IsNullOrWhiteSpace(f.Host))
         { conds.Add("host=$host"); parms.Add(("$host", f.Host)); }
+        if (!string.IsNullOrWhiteSpace(f.AgentId))
+        { conds.Add("agent_id=$agentId"); parms.Add(("$agentId", f.AgentId)); }
         if (!string.IsNullOrWhiteSpace(f.From))
         { conds.Add("ts>=$from"); parms.Add(("$from", f.From)); }
         if (!string.IsNullOrWhiteSpace(f.To))

@@ -7,6 +7,7 @@ public class EventFilter
 {
     public string? Module  { get; set; }
     public string? Host    { get; set; }
+    public string? AgentId { get; set; }
     public string? Search  { get; set; }
     public string? From    { get; set; }
     public string? To      { get; set; }
@@ -60,6 +61,7 @@ public class ScreenshotUpload
     public string Window     { get; set; } = "";
     public string Resolution { get; set; } = "";
     public string Jpeg       { get; set; } = "";
+    public string AgentId    { get; set; } = "";
 }
 
 public class ScreenshotRecord
@@ -85,7 +87,8 @@ public class ScreenshotsResponse
 
 public class ScreenshotFilter
 {
-    public string? Host   { get; set; }
+    public string? Host    { get; set; }
+    public string? AgentId { get; set; }
     public string? From   { get; set; }
     public string? To     { get; set; }
     public string? Search { get; set; }
@@ -115,19 +118,22 @@ public class CommandResult
 
 public class AgentStatus
 {
-    public string Host      { get; set; } = "";
-    public string LastSeen  { get; set; } = "";
-    public string FirstSeen { get; set; } = "";
-    public string AgentId   { get; set; } = "";
-    public bool   Online    { get; set; }
-    public long   Events    { get; set; }
+    public string Host        { get; set; } = "";
+    public string LastSeen    { get; set; } = "";
+    public string FirstSeen   { get; set; } = "";
+    public string AgentId     { get; set; } = "";
+    public bool   Online      { get; set; }
+    public long   Events      { get; set; }
+    // "active" = monitoring running, "stopped" = process alive but monitors paused
+    public string MonitorStatus { get; set; } = "active";
 }
 
 public class CreateCommandRequest
 {
-    public string Host    { get; set; } = "";
-    public string Command { get; set; } = "";
-    public string Payload { get; set; } = "";
+    public string  Host    { get; set; } = "";
+    public string  Command { get; set; } = "";
+    public string  Payload { get; set; } = "";
+    public string? AgentId { get; set; }
 }
 
 // ── Auth ──────────────────────────────────────────────────────────────────

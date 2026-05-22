@@ -390,7 +390,8 @@ app.MapPost("/api/ingest", async (HttpContext ctx, EventStore db) =>
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         if (events is null || events.Count == 0) return Results.BadRequest("Empty batch");
         if (events.Count > 1000)                 return Results.BadRequest("Too large");
-        db.InsertBatch(events);
+        string ingestAgentId = ctx.Request.Headers["X-Agent-Id"].FirstOrDefault() ?? "";
+        db.InsertBatch(events, ingestAgentId);
 
         // Telegram алерты
         if (telegram.IsConfigured)
@@ -423,6 +424,7 @@ app.MapPost("/api/screenshots/upload", async (HttpContext ctx, EventStore db) =>
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         if (upload is null || string.IsNullOrEmpty(upload.Jpeg))
             return Results.BadRequest("Empty");
+        upload.AgentId = ctx.Request.Headers["X-Agent-Id"].FirstOrDefault() ?? "";
         long id = db.SaveScreenshot(upload);
         return Results.Ok(new { id });
     }
@@ -435,8 +437,9 @@ app.MapPost("/api/screenshots/upload", async (HttpContext ctx, EventStore db) =>
 
 app.MapGet("/api/commands/{host}", (string host, HttpContext ctx, EventStore db) =>
 {
-    string agentId = ctx.Request.Headers["X-Agent-Id"].FirstOrDefault() ?? "";
-    return Results.Json(db.GetPendingCommands(host, agentId));
+    string agentId     = ctx.Request.Headers["X-Agent-Id"].FirstOrDefault() ?? "";
+    string agentStatus = ctx.Request.Query["status"].FirstOrDefault() ?? "active";
+    return Results.Json(db.GetPendingCommands(host, agentId, agentStatus));
 });
 
 app.MapPost("/api/commands/result", async (HttpContext ctx, EventStore db) =>
@@ -489,11 +492,12 @@ app.MapGet("/api/events", async (HttpContext ctx, EventStore db) =>
     {
         var q = ctx.Request.Query;
         var f = new EventFilter {
-            Module = q["module"].FirstOrDefault(),
-            Host   = q["host"].FirstOrDefault(),
-            From   = q["from"].FirstOrDefault(),
-            To     = q["to"].FirstOrDefault(),
-            Search = q["search"].FirstOrDefault(),
+            Module  = q["module"].FirstOrDefault(),
+            Host    = q["host"].FirstOrDefault(),
+            AgentId = q["agentId"].FirstOrDefault(),
+            From    = q["from"].FirstOrDefault(),
+            To      = q["to"].FirstOrDefault(),
+            Search  = q["search"].FirstOrDefault(),
             Limit  = int.TryParse(q["limit"],  out int l) ? Math.Min(l, maxRet) : 100,
             Offset = int.TryParse(q["offset"], out int o) ? o : 0
         };
@@ -513,11 +517,12 @@ app.MapGet("/api/export/events.csv", async (HttpContext ctx, EventStore db) =>
     {
         var q = ctx.Request.Query;
         var f = new EventFilter {
-            Module = q["module"].FirstOrDefault(),
-            Host   = q["host"].FirstOrDefault(),
-            From   = q["from"].FirstOrDefault(),
-            To     = q["to"].FirstOrDefault(),
-            Search = q["search"].FirstOrDefault()
+            Module  = q["module"].FirstOrDefault(),
+            Host    = q["host"].FirstOrDefault(),
+            AgentId = q["agentId"].FirstOrDefault(),
+            From    = q["from"].FirstOrDefault(),
+            To      = q["to"].FirstOrDefault(),
+            Search  = q["search"].FirstOrDefault()
         };
         string csv = db.QueryCsv(f);
         ctx.Response.Headers["Content-Disposition"] =
@@ -615,7 +620,7 @@ app.MapPost("/api/commands", async (HttpContext ctx, EventStore db) =>
 
         long id = db.CreateCommand(
             string.IsNullOrEmpty(req.Host) ? "*" : req.Host,
-            req.Command, req.Payload ?? "");
+            req.Command, req.Payload ?? "", req.AgentId ?? "");
 
         {   string cmdIp = ctx.Request.Headers["X-Forwarded-For"].FirstOrDefault()
                         ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";
