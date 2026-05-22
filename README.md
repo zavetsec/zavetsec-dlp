@@ -337,9 +337,10 @@ Mandatory values to set:
 - `DlpServer.ApiKey` — any random string, 32+ characters
 - `Kestrel.Endpoints.Https.Certificate.Password` — any password for the auto-generated certificate
 
-> **Note:** If you change the certificate password after the server has already run,
-> you must delete `C:\ProgramData\ZavetSec\DLP\server.pfx` before restarting —
-> otherwise Kestrel will fail to load the old certificate with the new password.
+> **Important:** Set `Certificate.Password` in `appsettings.json` **before** running the server for the first time.
+> The password is baked into the `.pfx` file at creation time.
+> If you change the password later, delete `C:\ProgramData\ZavetSec\DLP\server.pfx` before restarting —
+> the server will auto-generate a new certificate with the updated password.
 
 Generate a random key in PowerShell:
 ```powershell
@@ -1118,16 +1119,32 @@ schtasks /run /tn "ZavetSec DLP Agent"
 
 Same root cause as above — agent is running as SYSTEM with no access to the user's desktop session (Windows Session 0 Isolation). Apply the fix above.
 
-### Server fails with `CryptographicException: Wrong password`
+### Server fails with `CryptographicException: Wrong password` / `Сетевой пароль указан неверно`
 
-The certificate file `server.pfx` was created with a different password than the one in `appsettings.json`.
+The certificate `server.pfx` was created with a different password than what is now in `appsettings.json`.
 
-**Fix:**
+**This happens when:**
+- You changed `Certificate.Password` in `appsettings.json` after the first run
+- You copied `appsettings.json` from another machine with a different password
+- You downloaded a pre-built server release and set a new password
+
+**Fix — always the same two steps:**
+
 ```cmd
+:: Step 1: Delete the old certificate
 del "C:\ProgramData\ZavetSec\DLP\server.pfx"
-:: Update appsettings.json with the correct password, then restart
+
+:: Step 2: Restart the server — a new certificate is auto-generated with the current password
 dotnet DlpServer.dll
 ```
+
+Expected output after fix:
+```
+[HTTPS] Self-signed certificate created: C:\ProgramData\ZavetSec\DLP\server.pfx
+```
+
+> The certificate is always recreated on startup if `server.pfx` is missing.
+> Agents do not need any changes — they use `allowInvalidCertificate: true`.
 
 ### Agent events arrive but screenshots do not upload
 
