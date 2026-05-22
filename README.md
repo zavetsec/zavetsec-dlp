@@ -29,6 +29,7 @@
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Dashboard Preview](#dashboard-preview)
 - [Installing from a Release](#installing-from-a-release-no-sdk-required)
 - [Why ZavetSec DLP?](#why-zavetsec-dlp)
 - [Threat Model](#threat-model)
@@ -91,6 +92,24 @@ The agent appears in the **Agents** tab within ~30 seconds.
 Default credentials: `admin` / `admin` — you will be forced to change the password on first login.
 
 > See [Step 1 — Build](#step-1--build) through [Step 4 — Install the Agent](#step-4--install-the-agent) for the full deployment guide.
+
+---
+
+## Dashboard Preview
+
+> 📸 Screenshots coming soon. Deploy the server and add your own to `docs/screenshots/`.
+
+<!--
+Once you have the dashboard running, replace these placeholders:
+
+| Events | Screenshots | Agents |
+|--------|-------------|--------|
+| ![Events tab](docs/screenshots/events.png) | ![Screenshots tab](docs/screenshots/screenshots.png) | ![Agents tab](docs/screenshots/agents.png) |
+
+| Keylogger | Audit Log |
+|-----------|-----------|
+| ![Keylogger tab](docs/screenshots/keylogger.png) | ![Audit log](docs/screenshots/audit.png) |
+-->
 
 ---
 
@@ -1220,7 +1239,39 @@ ZavetSec DLP is a monitoring tool, not a remote access framework. The following 
 - **API key required** — all agent→server communication requires a pre-shared API key. The server rejects unauthenticated requests with HTTP 401.
 - **Self-hosted only** — no cloud component, no telemetry, no license server.
 
-> If you discover a security issue in ZavetSec DLP, please open a private GitHub Security Advisory rather than a public issue.
+> If you discover a security issue in ZavetSec DLP, please open a private GitHub Security Advisory rather than a public issue. See [SECURITY.md](SECURITY.md) for the full security policy.
+
+### Detection Evasion
+
+**ZavetSec DLP is not designed to evade antivirus, EDR, or forensic tools.**
+Antivirus exclusions are required because the software uses legitimate OS monitoring APIs
+(keyboard hooks, screen capture) that behavioral engines flag as suspicious by design.
+The agent has no obfuscation, packing, or anti-analysis mechanisms.
+
+### Production Hardening
+
+Recommended configuration for production deployments:
+
+| Recommendation | How |
+|---|---|
+| Disable HTTP | Remove `Http` block from `appsettings.json` |
+| VPN-only access | Place server behind VPN; block ports 5000/5001 from the internet |
+| Reverse proxy | Put nginx/Caddy in front for TLS termination and access logging |
+| Firewall | Allow 5001 only from agent subnet; block all other sources |
+| Rotate API key | Update `ApiKey` in `appsettings.json` + all agent `config.json` files periodically |
+| Backup | Back up `C:\ProgramData\ZavetSec\DLP\` (database + certificate) |
+
+### Compliance Considerations
+
+ZavetSec DLP logs personally identifiable information (keystrokes, screenshots, clipboard).
+Before deploying in your organization:
+
+- **GDPR (EU):** Requires a lawful basis (legitimate interest or consent), data minimization, retention limits, and employee notification. Configure `retentionLogDays` and `retentionScreenshotDays` accordingly.
+- **Employee notification:** In most jurisdictions employees must be informed that their activity is monitored. Document which modules are active.
+- **Data retention:** Set retention periods in `config.json` (`retentionLogDays`, `retentionScreenshotDays`) to comply with your policy. Server-side data can be deleted per-host from the Management tab.
+- **Access control:** Use the `viewer` role for helpdesk staff who only need to view data. Restrict `admin` role to security team members only.
+
+> The deploying organization is solely responsible for legal compliance. ZavetSec DLP provides the technical controls; the legal framework is your responsibility.
 
 ---
 
