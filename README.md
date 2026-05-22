@@ -711,6 +711,37 @@ dotnet DlpServer.dll
 :: A new certificate is created with the new password
 ```
 
+### Disable HTTP (recommended for production)
+
+By default the server listens on both HTTP `:5000` and HTTPS `:5001`.
+HTTP is included for easier initial setup and fallback troubleshooting,
+but transmits data (events, screenshots, API key) in plaintext.
+
+**For production deployments, remove the HTTP endpoint from `appsettings.json`:**
+
+```json
+"Kestrel": {
+  "Endpoints": {
+    "Https": {
+      "Url": "https://0.0.0.0:5001",
+      "Certificate": {
+        "Path": "C:\\ProgramData\\ZavetSec\\DLP\\server.pfx",
+        "Password": "YOUR_CERT_PASSWORD"
+      }
+    }
+  }
+}
+```
+
+Then make sure all agents use `https://` in `config.json`:
+```json
+"serverUrl": "https://YOUR-SERVER:5001"
+```
+
+> HTTP on port 5000 is acceptable for internal corporate LAN deployments where
+> network traffic is already isolated. Disable it if there is any risk of traffic
+> interception (untrusted VLAN, Wi-Fi, WAN, DMZ).
+
 ### Use a Trusted Certificate (Let's Encrypt / Corporate CA)
 
 ```json
@@ -1087,7 +1118,7 @@ zavetsec-dlp/
 | Password change | Immediate invalidation of all user sessions |
 | Brute force | 5 failed attempts per IP → 15-minute lockout |
 | Rate limiting | 1,000 requests/minute per IP on agent endpoints |
-| Transport | HTTPS, self-signed RSA-2048 certificate |
+| Transport | HTTPS (port 5001); HTTP (port 5000) open by default — disable in `appsettings.json` for production |
 | Local logs | AES-256-CBC, key in Windows DPAPI machine scope |
 | API auth | `X-Api-Key` (agents) + Bearer token (dashboard) |
 | API key model | Shared key for all agents — see [Roadmap](#roadmap) for per-agent auth |
@@ -1241,6 +1272,7 @@ Typical resource usage on a monitored workstation (measured on Windows 10, idle 
 - No **code signing** certificate — Windows Defender behavioral detection requires an exclusion
 - SQLite is not recommended above ~50 GB database size
 - Self-signed HTTPS certificate shows a browser warning (expected — click "Proceed")
+- HTTP port 5000 is open by default — remove the `Http` endpoint from `appsettings.json` to disable it in production
 
 ---
 
