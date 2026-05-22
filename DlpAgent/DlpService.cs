@@ -16,6 +16,8 @@ namespace ZavetSec.DlpAgent
         private FileActivityMonitor _fileActivity;
         private ProcessMonitor      _process;
         private CommandPoller       _commandPoller;
+        private System.Threading.Timer _watchdogTimer;
+        private volatile bool _intentionallyStopped = false;
         private System.Threading.Timer _heartbeatTimer;
 
         private Thread _pumpThread;
@@ -43,6 +45,23 @@ namespace ZavetSec.DlpAgent
         }
         public void StopDebug() => StopInternal();
 
+        private static string RunCmd(string exe, string args)
+        {
+            try
+            {
+                var p = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = exe, Arguments = args,
+                    RedirectStandardOutput = true,
+                    UseShellExecute = false, CreateNoWindow = true
+                });
+                string output = p?.StandardOutput.ReadToEnd() ?? "";
+                p?.WaitForExit(5000);
+                return output;
+            }
+            catch { return ""; }
+        }
+
         private void InitCommandPoller()
         {
             if (_commandPoller != null) return; // already running
@@ -56,6 +75,7 @@ namespace ZavetSec.DlpAgent
 
         private void StartInternal()
         {
+            _intentionallyStopped = false;  // allow watchdog to run
             Config.InitSilent();
 
             Logger.Init(
@@ -108,6 +128,45 @@ namespace ZavetSec.DlpAgent
             // CommandPoller запускается один раз при первом старте (см. ниже в OnStart/StartDebug).
             // При повторном StartInternal (команда start) поллер уже работает — не пересоздаём.
 
+            // Watchdog — каждые 60 сек проверяет что мониторы живы
+            // и перезапускает их если упали (tamper resistance)
+            _watchdogTimer = new System.Threading.Timer(_ =>
+            {
+                try
+                {
+                    // If monitoring is intentionally stopped, skip watchdog
+                    if (_intentionallyStopped) return;
+
+                    // Check if the scheduled task was killed externally
+                    // by trying to write a heartbeat - if LogShipper is dead, reinit
+                    if (!LogShipper.IsRunning || !ScreenshotShipper.IsRunning)
+                    {
+                        Logger.WriteLocal("WATCHDOG", "Shipper died — reinitializing");
+                        LogShipper.Init();
+                        ScreenshotShipper.Init();
+                    }
+
+                    // Re-register scheduled tasks if they were deleted (tamper attempt)
+                    try
+                    {
+                        string taskName = "ZavetSec DLP Agent";
+                        string result = RunCmd("schtasks", "/query /tn \"ZavetSec DLP Agent\" /fo LIST");
+                        if (!result.Contains(taskName))
+                        {
+                            Logger.WriteLocal("WATCHDOG", "Scheduled task missing — re-registering");
+                            string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName ?? "";
+                            if (!string.IsNullOrEmpty(exePath))
+                            {
+                                string args = "/create /tn \"ZavetSec DLP Agent\" /tr \"\"" + exePath + "\" --task-mode\" /sc ONLOGON /rl HIGHEST /f";
+                                RunCmd("schtasks", args);
+                            }
+                        }
+                    }
+                    catch { }
+                }
+                catch { }
+            }, null, 60_000, 60_000);
+
             // Heartbeat каждые 60 сек — обновляет last_seen на сервере
             // чтобы Online-статус в дашборде не мигал при отсутствии активности.
             // Logger.Write отправляет через LogShipper если shipper включён.
@@ -123,6 +182,11 @@ namespace ZavetSec.DlpAgent
 
         private void StopInternal()
         {
+            _intentionallyStopped = true;   // tell watchdog to stand down
+
+            _watchdogTimer?.Dispose();
+            _watchdogTimer = null;
+
             _heartbeatTimer?.Dispose();
             _heartbeatTimer = null;
 
