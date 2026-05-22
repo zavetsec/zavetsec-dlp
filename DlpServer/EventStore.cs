@@ -910,11 +910,12 @@ public class EventStore
         return list;
     }
 
-    public void RemoveAgent(string host)
+    public void RemoveAgent(string host, string agentId = "")
     {
         using var conn = Open();
         using var tx   = conn.BeginTransaction();
-        string ts = DateTime.UtcNow.ToString("o");
+        string ts  = DateTime.UtcNow.ToString("o");
+        bool   byId = !string.IsNullOrWhiteSpace(agentId);
 
         // Log AGENT_REMOVED event before deleting
         var ev = conn.CreateCommand();
@@ -922,13 +923,20 @@ public class EventStore
             "VALUES ($ts, $h, 'system', 'AGENT_REMOVED', 'Agent removed from dashboard', $data, $ts)";
         ev.Parameters.AddWithValue("$ts",   ts);
         ev.Parameters.AddWithValue("$h",    host);
-        ev.Parameters.AddWithValue("$data", $"action=dashboard_remove");
+        ev.Parameters.AddWithValue("$data", byId ? $"action=dashboard_remove|agent_id={agentId}" : "action=dashboard_remove");
         ev.ExecuteNonQuery();
 
+        // Delete only the specific agent_id when known — prevents mass-deletion
+        // of all agents sharing the same hostname
         var c1 = conn.CreateCommand();
-        c1.CommandText = "DELETE FROM hosts WHERE host=$h";
-        c1.Parameters.AddWithValue("$h", host);
+        c1.CommandText = byId
+            ? "DELETE FROM hosts WHERE host=$h AND agent_id=$aid"
+            : "DELETE FROM hosts WHERE host=$h";
+        c1.Parameters.AddWithValue("$h",   host);
+        if (byId) c1.Parameters.AddWithValue("$aid", agentId);
         c1.ExecuteNonQuery();
+
+        // Commands are always cleaned up for the host (they don't have agent_id)
         var c2 = conn.CreateCommand();
         c2.CommandText = "DELETE FROM commands WHERE host=$h";
         c2.Parameters.AddWithValue("$h", host);

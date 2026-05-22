@@ -461,9 +461,12 @@ app.MapPost("/api/commands/result", async (HttpContext ctx, EventStore db) =>
                 if (!string.IsNullOrEmpty(host))
                 {
                     // Log uninstall completion BEFORE removing from hosts table
+                    // Get agentId from command host header (stored in command payload or derived)
+                    string uninstAgentId = ctx.Request.Headers["X-Agent-Id"].FirstOrDefault() ?? "";
                     db.InsertSystemEvent(host, "AGENT_UNINSTALLED",
-                        "Agent successfully uninstalled", $"cmd_id={result.Id}");
-                    db.RemoveAgent(host);
+                        "Agent successfully uninstalled",
+                        $"cmd_id={result.Id}|agent_id={uninstAgentId}");
+                    db.RemoveAgent(host, uninstAgentId);
                 }
             }
         }
@@ -647,9 +650,10 @@ app.MapGet("/api/commands/history", (HttpContext ctx, EventStore db) =>
     }
 });
 
-app.MapDelete("/api/agents/{host}", (string host, EventStore db) =>
+app.MapDelete("/api/agents/{host}", (string host, HttpContext ctx, EventStore db) =>
 {
-    try { db.RemoveAgent(host); return Results.Ok(new { removed = host }); }
+    string removeAgentId = ctx.Request.Query["agentId"].FirstOrDefault() ?? "";
+    try { db.RemoveAgent(host, removeAgentId); return Results.Ok(new { removed = host }); }
     catch (Exception ex) { app.Logger.LogError(ex, "Remove agent error"); return Results.StatusCode(500); }
 });
 
