@@ -29,6 +29,7 @@
 ## Table of Contents
 
 - [Quick Start](#quick-start)
+- [Installing from a Release](#installing-from-a-release-no-sdk-required)
 - [Why ZavetSec DLP?](#why-zavetsec-dlp)
 - [Threat Model](#threat-model)
 - [Features](#features)
@@ -90,6 +91,105 @@ The agent appears in the **Agents** tab within ~30 seconds.
 Default credentials: `admin` / `admin` — you will be forced to change the password on first login.
 
 > See [Step 1 — Build](#step-1--build) through [Step 4 — Install the Agent](#step-4--install-the-agent) for the full deployment guide.
+
+---
+
+## Installing from a Release (no SDK required)
+
+If you downloaded the pre-built binaries from the [Releases](../../releases) page,
+you do not need the .NET SDK — only **.NET 8 Runtime** on the server.
+
+### Server — DlpServer-publish.zip
+
+```cmd
+:: 1. Extract the archive to any folder, e.g. C:\DlpServer
+mkdir C:\DlpServer
+:: Extract DlpServer-publish.zip contents into C:\DlpServer
+
+:: 2. Create config from template
+copy C:\DlpServerppsettings.example.json C:\DlpServerppsettings.json
+notepad C:\DlpServerppsettings.json
+```
+
+Set these two values in `appsettings.json`:
+```json
+"ApiKey": "any-random-string-32+chars",
+"Password": "any-password-for-the-certificate"
+```
+
+```cmd
+:: 3. Install .NET 8 Runtime if not already installed
+::    https://dotnet.microsoft.com/download/dotnet/8.0
+::    Download: ".NET Runtime 8.x" → Windows x64 Installer
+
+:: 4. Start the server (first run auto-creates HTTPS certificate)
+cd C:\DlpServer
+dotnet DlpServer.dll
+
+:: Dashboard: https://localhost:5001
+:: Login: admin / admin  (you will be forced to change password)
+```
+
+> **Note:** The database (`events.db`) and certificate (`server.pfx`) are stored in
+> `C:\ProgramData\ZavetSec\DLP\` — **outside** the install folder.
+> You can safely replace `DlpServer.dll` and other files to upgrade without losing data.
+
+### Agent — ZavetSecDlpAgent.exe
+
+The agent is **fully self-contained** — no .NET Runtime needed on monitored workstations.
+
+```powershell
+:: Option A — automated install (run as Administrator)
+:: Copy install.ps1 from the repo and ZavetSecDlpAgent.exe to the same folder, then:
+.\install.ps1 -ServerUrl "https://YOUR-SERVER:5001" -ApiKey "YOUR_KEY"
+```
+
+```cmd
+:: Option B — manual install (run as Administrator)
+
+:: 1. Create install directory
+mkdir C:\ProgramData\ZavetSec\Agent
+
+:: 2. Copy the exe
+copy ZavetSecDlpAgent.exe C:\ProgramData\ZavetSec\Agent
+:: 3. Generate default config
+cd C:\ProgramData\ZavetSec\Agent
+ZavetSecDlpAgent.exe --console
+:: Press Enter immediately to stop — config.json is now created
+
+:: 4. Edit config — set serverUrl and apiKey
+notepad config.json
+
+:: 5. Register scheduled tasks
+schtasks /create /tn "ZavetSec DLP Agent" ^
+  /tr ""C:\ProgramData\ZavetSec\Agent\ZavetSecDlpAgent.exe" --task-mode" ^
+  /sc ONLOGON /rl HIGHEST /f
+
+schtasks /create /tn "ZavetSec DLP Agent Boot" ^
+  /tr ""C:\ProgramData\ZavetSec\Agent\ZavetSecDlpAgent.exe" --task-mode" ^
+  /sc ONSTART /ru SYSTEM /rl HIGHEST /f
+
+:: 6. Start
+schtasks /run /tn "ZavetSec DLP Agent"
+```
+
+> **Before deploying the agent:** add antivirus exclusions — see [Step 3 — Antivirus Exclusions](#step-3--antivirus-exclusions-required).
+
+### Preparing a clean server archive for release
+
+If you built the server yourself and want to share it, make sure no secrets are included:
+
+```cmd
+:: Remove secrets before archiving
+del "DlpServer\publishppsettings.json"
+del "DlpServer\publish\*.pfx"
+:: Verify no database files
+dir "DlpServer\publish\*.db"
+
+:: Archive (only example config, no real keys)
+powershell Compress-Archive -Path "DlpServer\publish\*" ^
+  -DestinationPath "DlpServer-publish.zip"
+```
 
 ---
 
