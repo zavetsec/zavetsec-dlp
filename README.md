@@ -97,7 +97,7 @@ Default credentials: `admin` / `admin` — you will be forced to change the pass
 
 ## Dashboard Preview
 
-> 📸 Screenshots coming soon. Deploy the server and add your own to `docs/screenshots/`.
+<img width="1901" height="916" alt="zavetsecdlpserver" src="https://github.com/user-attachments/assets/dd205cdc-6076-41f3-aea1-da83356dbcee" />
 
 <!--
 Once you have the dashboard running, replace these placeholders:
