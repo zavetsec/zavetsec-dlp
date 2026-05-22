@@ -1,0 +1,1412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZavetSec DLP</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0f1117;--bg2:#181c27;--bg3:#1e2333;--border:#2a2f45;--text:#c9d1e0;--text2:#7b8499;--text3:#4a5068;--blue:#4a9eff;--green:#3ecf8e;--red:#ff5555;--yellow:#ffb86c;--cyan:#8be9fd;}
+body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px}
+.login-page{display:none;min-height:100vh;align-items:center;justify-content:center}
+.login-page.active{display:flex}
+.login-box{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:40px;width:360px}
+.login-box h1{font-size:20px;font-weight:700;color:#fff;margin-bottom:6px}
+.login-box .sub{color:var(--text2);font-size:13px;margin-bottom:28px}
+.login-box label{display:block;font-size:12px;color:var(--text2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.login-box input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:9px 12px;font-size:14px;outline:none;margin-bottom:16px}
+.login-box input:focus{border-color:var(--blue)}
+.login-btn{width:100%;background:var(--blue);color:#fff;border:none;border-radius:6px;padding:10px;font-size:14px;font-weight:600;cursor:pointer}
+.login-btn:hover{filter:brightness(1.15)}.login-btn:disabled{opacity:.5;cursor:default}
+.login-error{color:var(--red);font-size:13px;margin-top:10px;text-align:center;min-height:20px}
+#app{display:none}#app.active{display:block}
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:12px}
+.header h1{font-size:17px;font-weight:600;color:#fff}.header h1 span{color:var(--blue)}
+.hright{margin-left:auto;display:flex;align-items:center;gap:12px}
+.auto-refresh{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+.auto-refresh input{accent-color:var(--blue)}
+.lang-btn{background:var(--bg3);border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:3px 10px;font-size:12px;cursor:pointer;font-weight:600;letter-spacing:.5px}
+.lang-btn:hover{border-color:var(--blue);color:var(--blue)}
+.status-indicator{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--text2)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.user-info{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--text2);padding:4px 10px;background:var(--bg3);border:1px solid var(--border);border-radius:20px}
+.user-info .uname{color:var(--text);font-weight:500}.user-info .urole{color:var(--yellow);font-size:11px}
+.logout-btn{background:transparent;border:1px solid var(--border);color:var(--text2);border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer}
+.logout-btn:hover{border-color:var(--red);color:var(--red)}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;padding:16px 24px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:14px 16px}
+.stat-card .label{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--text2);margin-bottom:6px}
+.stat-card .value{font-size:24px;font-weight:700;color:#fff}
+.stat-card .sub{font-size:11px;color:var(--text3);margin-top:3px}
+.stat-card.alert-card{border-color:#7a2020;background:#2a1a1a}
+.stat-card.alert-card .value{color:var(--red)}
+.disk-bar{padding:0 24px 12px;display:flex;gap:20px;font-size:12px;color:var(--text3)}
+.disk-bar span{display:flex;align-items:center;gap:5px}.disk-bar b{color:var(--text2)}
+.tabs{display:flex;border-bottom:1px solid var(--border);padding:0 24px;background:var(--bg2)}
+.tab{padding:10px 20px;cursor:pointer;font-size:13px;color:var(--text2);border-bottom:2px solid transparent;margin-bottom:-1px;transition:color .15s}
+.tab:hover{color:var(--text)}.tab.active{color:var(--blue);border-bottom-color:var(--blue);font-weight:500}
+.tab-content{display:none}.tab-content.active{display:block}
+.filters{background:var(--bg2);border-bottom:1px solid var(--border);padding:10px 24px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.filters select,.filters input{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:5px 9px;font-size:13px;outline:none}
+.filters select:focus,.filters input:focus{border-color:var(--blue)}
+.filters input[type=text]{width:200px}
+.btn{background:var(--blue);color:#fff;border:none;border-radius:6px;padding:5px 14px;font-size:13px;cursor:pointer;font-weight:500;transition:filter .1s}
+.btn:hover{filter:brightness(1.15)}.btn:disabled{opacity:.4;cursor:default;filter:none}
+.btn-ghost{background:transparent;border:1px solid var(--border);color:var(--text2)}
+.btn-ghost:hover{border-color:var(--text2);color:var(--text)}
+.btn-red{background:#7a2020;color:#ffaaaa;border:none}.btn-red:hover{background:#9a2020}
+.btn-yellow{background:#4a3010;color:#ffb86c;border:none}.btn-yellow:hover{background:#6a4010}
+.btn-green{background:#0f3020;color:var(--green);border:1px solid #1a6040}.btn-green:hover{background:#1a4030}
+.btn-sm{padding:3px 10px;font-size:12px}
+.count-label{margin-left:auto;color:var(--text3);font-size:12px}
+.table-wrap{padding:0 24px 24px;overflow-x:auto}
+.events-table{width:100%;border-collapse:collapse;margin-top:10px}
+.events-table th{background:var(--bg2);color:var(--text2);font-weight:500;font-size:11px;text-transform:uppercase;letter-spacing:.7px;padding:9px 12px;text-align:left;border-bottom:1px solid var(--border);white-space:nowrap}
+.events-table td{padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px;vertical-align:middle}
+.events-table tr:hover td{background:var(--bg2)}
+.ts-cell{white-space:nowrap;color:var(--text2);font-size:12px}
+.host-cell{white-space:nowrap;color:var(--cyan);font-weight:500}
+.user-cell{white-space:nowrap;color:var(--text2);font-size:12px}
+.data-cell{color:var(--text3);font-size:12px;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
+.data-cell:hover{white-space:normal;word-break:break-all;color:var(--text2)}
+.badge{display:inline-block;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:600;letter-spacing:.3px;white-space:nowrap}
+.badge-alert{background:#3a1515;color:#ff6b6b;border:1px solid #7a2020}
+.badge-key{background:#1e1535;color:#bd93f9;border:1px solid #4a2a9a}
+.badge-clip{background:#1a2535;color:#8be9fd;border:1px solid #1a5070}
+.badge-ss{background:#102030;color:#4a9eff;border:1px solid #1a4060}
+.badge-net{background:#0f2020;color:#3ecf8e;border:1px solid #0f5030}
+.badge-usb{background:#2a2010;color:#ffb86c;border:1px solid #6a4010}
+.badge-file{background:#251a10;color:#ffb86c;border:1px solid #5a3010}
+.badge-proc{background:#201520;color:#ff79c6;border:1px solid #6a1560}
+.badge-service{background:#1a1a1a;color:#7b8499;border:1px solid #3a3a3a}
+.ss-toolbar{padding:10px 24px 0;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.ss-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px;padding:12px 24px 24px}
+.ss-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;cursor:pointer;transition:border-color .15s;position:relative}
+.ss-card:hover{border-color:var(--blue)}.ss-card.selected{border-color:var(--blue);box-shadow:0 0 0 2px rgba(74,158,255,.3)}
+.ss-check{position:absolute;top:8px;left:8px;z-index:10;display:none;width:20px;height:20px;cursor:pointer;accent-color:var(--blue)}
+.select-mode .ss-check{display:block}.select-mode .ss-card{cursor:default}
+.select-mode .ss-card:hover{border-color:var(--border)}.select-mode .ss-card.selected{border-color:var(--blue)}
+.ss-thumb{width:100%;aspect-ratio:16/9;object-fit:cover;display:block;background:var(--bg3)}
+.ss-info{padding:10px 12px}
+.ss-info-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.ss-host{color:var(--cyan);font-weight:500;font-size:13px}
+.ss-proc{color:var(--yellow);font-size:11px;font-weight:600;background:#2a2000;padding:1px 6px;border-radius:3px}
+.ss-meta{color:var(--text2);font-size:11px;margin-top:2px}
+.ss-window{color:var(--text3);font-size:11px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.agent-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:12px;overflow:hidden}
+.agent-card.online{border-color:#1a4030}
+.agent-header{padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.agent-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.agent-dot.online{background:var(--green);box-shadow:0 0 6px var(--green)}
+.agent-dot.offline{background:var(--text3)}
+.agent-host{font-size:15px;font-weight:600;color:#fff}
+.agent-actions{display:flex;gap:8px;margin-left:16px;flex-wrap:wrap}
+.agent-body{border-top:1px solid var(--border);padding:12px 18px;display:none}
+.agent-body.open{display:block}
+.cmd-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--border);font-size:12px}
+.cmd-row:last-child{border-bottom:none}
+.cmd-name{color:var(--text);font-weight:500;min-width:100px}
+.cmd-ts{color:var(--text3);min-width:160px}.cmd-status{min-width:80px}
+.cmd-err{color:var(--red);flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.broadcast-panel{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:16px 18px;margin-bottom:16px}
+.broadcast-panel h3{font-size:13px;font-weight:600;color:var(--text2);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px}
+.broadcast-actions{display:flex;gap:8px;flex-wrap:wrap}
+.cs-pending{color:var(--yellow)}.cs-delivered{color:var(--blue)}.cs-executed{color:var(--green)}.cs-error{color:var(--red)}
+.kl-wrap{padding:16px 24px}
+.kl-session{background:var(--bg2);border:1px solid var(--border);border-radius:8px;margin-bottom:10px;overflow:hidden}
+.kl-header{padding:10px 14px;display:flex;gap:12px;align-items:center;cursor:pointer}
+.kl-header:hover{background:var(--bg3)}
+.kl-host{color:var(--cyan);font-weight:500}
+.kl-win{color:var(--text2);font-size:12px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.kl-ts{color:var(--text3);font-size:11px;white-space:nowrap}
+.kl-body{padding:12px 14px;font-family:'Courier New',monospace;font-size:13px;line-height:1.8;color:var(--text);word-break:break-all;display:none}
+.kl-body.open{display:block}
+.kl-tag{color:var(--yellow)}.kl-highlight{background:#3a2a00;color:#ffcc44;border-radius:2px;padding:0 1px}
+.mgmt-wrap{padding:16px 24px}
+.user-table-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:20px}
+.user-table-card table{width:100%;border-collapse:collapse}
+.user-table-card th{background:var(--bg3);color:var(--text2);font-size:11px;text-transform:uppercase;letter-spacing:.7px;padding:10px 14px;text-align:left;border-bottom:1px solid var(--border)}
+.user-table-card td{padding:10px 14px;border-bottom:1px solid var(--border);font-size:13px}
+.user-table-card tr:last-child td{border-bottom:none}.user-table-card tr:hover td{background:var(--bg3)}
+.role-admin{color:var(--yellow);background:#2a2000;padding:2px 8px;border-radius:4px;font-size:11px;font-weight:600}
+.role-viewer{color:var(--text2);background:var(--bg3);padding:2px 8px;border-radius:4px;font-size:11px}
+.form-card{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px}
+.form-card h3{font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text)}
+.form-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.form-field{display:flex;flex-direction:column;gap:4px}
+.form-field label{font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.form-field input,.form-field select{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:7px 10px;font-size:13px;outline:none;min-width:150px}
+.form-field input:focus,.form-field select:focus{border-color:var(--blue)}
+.tg-section{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:20px;margin-bottom:16px}
+.tg-section h3{font-size:14px;font-weight:600;margin-bottom:8px;color:var(--text)}
+.tg-section p{color:var(--text2);font-size:13px;margin-bottom:12px;line-height:1.5}
+.tg-status{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:4px 10px;border-radius:20px;margin-bottom:12px}
+.tg-status.enabled{background:#0f3020;color:var(--green);border:1px solid #1a6040}
+.tg-status.disabled{background:var(--bg3);color:var(--text3);border:1px solid var(--border)}
+.modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:1000;align-items:center;justify-content:center;padding:20px}
+.modal.open{display:flex}
+.modal-inner{position:relative;max-width:95vw;max-height:95vh;display:flex;flex-direction:column;border-radius:6px;overflow:hidden}
+.modal img{max-width:100%;max-height:82vh;display:block;object-fit:contain}
+.modal-close{position:absolute;top:-14px;right:-14px;background:var(--red);color:#fff;border:none;border-radius:50%;width:28px;height:28px;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10}
+.modal-footer{background:rgba(15,17,23,.97);padding:12px 16px;display:flex;align-items:flex-start;justify-content:space-between;gap:16px;flex-shrink:0}
+.modal-meta{color:var(--text);font-size:12px;white-space:pre-line;line-height:1.7;flex:1}
+.modal-del-btn{background:#7a2020;color:#ffaaaa;border:none;border-radius:6px;padding:7px 16px;font-size:13px;cursor:pointer;white-space:nowrap;align-self:center;flex-shrink:0}
+.modal-del-btn:hover{background:#9a2020}
+.force-pw-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:5000;align-items:center;justify-content:center}
+.force-pw-overlay.open{display:flex}
+.force-pw-box{background:var(--bg2);border:2px solid var(--yellow);border-radius:12px;padding:32px;max-width:400px;width:100%}
+.force-pw-box h2{font-size:18px;font-weight:700;color:var(--yellow);margin-bottom:8px}
+.force-pw-box p{color:var(--text2);font-size:13px;margin-bottom:20px;line-height:1.5}
+.force-pw-box label{display:block;font-size:11px;color:var(--text2);margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px}
+.force-pw-box input{width:100%;background:var(--bg3);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:9px 12px;font-size:14px;outline:none;margin-bottom:14px}
+.force-pw-box input:focus{border-color:var(--yellow)}
+.force-pw-hint{font-size:11px;color:var(--text3);margin-bottom:12px}
+.force-pw-error{color:var(--red);font-size:13px;margin-bottom:12px;min-height:18px}
+.confirm-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:2000;align-items:center;justify-content:center}
+.confirm-overlay.open{display:flex}
+.confirm-box{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:24px;max-width:400px;width:100%;text-align:center}
+.confirm-box h3{font-size:16px;margin-bottom:10px;color:#fff}
+.confirm-box p{color:var(--text2);font-size:13px;margin-bottom:20px;line-height:1.5}
+.confirm-btns{display:flex;gap:10px;justify-content:center}
+.pagination{display:flex;align-items:center;gap:10px;margin-top:12px;justify-content:center;color:var(--text2);font-size:13px;padding-bottom:16px}
+.pagination button{background:var(--bg2);border:1px solid var(--border);color:var(--text);border-radius:6px;padding:4px 12px;cursor:pointer}
+.pagination button:disabled{opacity:.35;cursor:default}
+.pagination button:not(:disabled):hover{border-color:var(--blue);color:var(--blue)}
+.loading,.empty{text-align:center;padding:40px;color:var(--text3)}
+.loader{display:inline-block;width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--blue);border-radius:50%;animation:spin .7s linear infinite;margin-right:8px;vertical-align:middle}
+@keyframes spin{to{transform:rotate(360deg)}}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:12px 18px;font-size:13px;color:var(--text);z-index:3000;animation:fadeIn .2s ease;box-shadow:0 4px 20px rgba(0,0,0,.4);max-width:400px}
+.toast.success{border-color:var(--green);color:var(--green)}
+.toast.error{border-color:var(--red);color:var(--red)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+
+<div class="login-page active" id="loginPage">
+  <div class="login-box">
+    <h1>ZavetSec <span style="color:var(--blue)">DLP</span></h1>
+    <div class="sub" data-i18n="login.subtitle"></div>
+    <label data-i18n="login.username"></label>
+    <input type="text" id="loginUsername" autocomplete="username">
+    <label data-i18n="login.password"></label>
+    <input type="password" id="loginPassword" autocomplete="current-password">
+    <button class="login-btn" id="loginBtn" onclick="doLogin()" data-i18n="login.submit"></button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<div class="force-pw-overlay" id="forcePwOverlay">
+  <div class="force-pw-box">
+    <h2 data-i18n="forcePw.title"></h2>
+    <p data-i18n="forcePw.desc"></p>
+    <label data-i18n="forcePw.current"></label>
+    <input type="password" id="forcePwOld">
+    <label data-i18n="forcePw.new"></label>
+    <input type="password" id="forcePwNew">
+    <label data-i18n="forcePw.repeat"></label>
+    <input type="password" id="forcePwNew2">
+    <div class="force-pw-hint" data-i18n="forcePw.hint"></div>
+    <div class="force-pw-error" id="forcePwError"></div>
+    <button class="btn" style="width:100%;padding:10px;font-size:14px" onclick="doForcePwChange()" data-i18n="forcePw.submit"></button>
+  </div>
+</div>
+
+<div id="app">
+<div class="header">
+  <h1>ZavetSec <span>DLP</span></h1>
+  <div class="hright">
+    <label class="auto-refresh"><input type="checkbox" id="autoRefresh" checked><span data-i18n="header.autoRefresh"></span></label>
+    <button class="lang-btn" id="langBtn" onclick="toggleLanguage()">EN</button>
+    <div class="status-indicator"><span class="dot" id="statusDot"></span><span id="statusText" data-i18n="health.checking"></span></div>
+    <div class="user-info"><span class="uname" id="headerUsername">-</span><span class="urole" id="headerRole"></span></div>
+    <button class="logout-btn" onclick="doLogout()" data-i18n="header.logout"></button>
+  </div>
+</div>
+
+<div class="stats">
+  <div class="stat-card"><div class="label" data-i18n="stats.totalEvents"></div><div class="value" id="sTotal">-</div></div>
+  <div class="stat-card alert-card"><div class="label" data-i18n="stats.alertsToday"></div><div class="value" id="sAlerts">-</div></div>
+  <div class="stat-card"><div class="label" data-i18n="stats.activeHosts"></div><div class="value" id="sHosts">-</div><div class="sub" data-i18n="stats.last24h"></div></div>
+  <div class="stat-card"><div class="label" data-i18n="stats.lastEvent"></div><div class="value" style="font-size:14px;padding-top:6px" id="sLast">-</div></div>
+</div>
+<div class="disk-bar" id="diskBar" style="display:none">
+  <span><span data-i18n="stats.db"></span> <b id="diskDb">-</b></span>
+  <span><span data-i18n="stats.screenshots"></span> <b id="diskSs">-</b></span>
+</div>
+
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('events',this)" data-i18n="tab.events"></div>
+  <div class="tab" onclick="switchTab('screenshots',this)" data-i18n="tab.screenshots"></div>
+  <div class="tab" onclick="switchTab('keylogger',this)" data-i18n="tab.keylogger"></div>
+  <div class="tab" onclick="switchTab('agents',this)" data-i18n="tab.agents"></div>
+  <div class="tab" id="tabMgmt" style="display:none" onclick="switchTab('management',this)" data-i18n="tab.management"></div>
+  <div class="tab" id="tabAudit" style="display:none" onclick="switchTab('audit',this)" data-i18n="tab.audit"></div>
+  <div class="tab" id="tabAudit" style="display:none" onclick="switchTab('audit',this)" data-i18n="tab.audit"></div>
+  <div class="tab" id="tabAudit" style="display:none" onclick="switchTab('audit',this)" data-i18n="tab.audit"></div>
+</div>
+
+<!-- EVENTS -->
+<div class="tab-content active" id="tab-events">
+  <div class="filters">
+    <select id="fModule"><option value="" data-i18n="filter.allModules"></option><option>KEYLOGGER</option><option>CLIPBOARD</option><option>CLIPBOARD_ALERT</option><option>SCREENSHOT</option><option>NETWORK_TCP</option><option>DNS_ALERT</option><option>DNS_NEW</option><option>USB_ALERT</option><option>USB_CONNECT</option><option>FILE_ALERT</option><option>FILE_COPY</option><option>PROCESS_ALERT</option><option>PROCESS_NEW</option><option>SERVICE</option><option>HEARTBEAT</option></select>
+    <select id="fHost"><option value="" data-i18n="filter.allHosts"></option></select>
+    <input type="date" id="fFrom"><input type="date" id="fTo">
+    <input type="text" id="fSearch">
+    <button class="btn" onclick="applyFilter()" data-i18n="filter.apply"></button>
+    <button class="btn btn-ghost" onclick="resetFilter()" data-i18n="filter.reset"></button>
+    <button class="btn btn-ghost btn-sm" onclick="exportCsv()" id="csvBtn">&#11015; CSV</button>
+    <span class="count-label" id="evCount"></span>
+  </div>
+  <div class="table-wrap">
+    <table class="events-table">
+      <thead><tr>
+        <th data-i18n="events.time"></th>
+        <th data-i18n="events.host"></th>
+        <th data-i18n="events.user"></th>
+        <th data-i18n="events.module"></th>
+        <th data-i18n="events.message"></th>
+        <th data-i18n="events.data"></th>
+      </tr></thead>
+      <tbody id="evBody"><tr><td colspan="6" class="loading"><span class="loader"></span><span data-i18n="events.loading"></span></td></tr></tbody>
+    </table>
+    <div class="pagination">
+      <button id="evPrev" onclick="evPrevPage()" disabled data-i18n="pag.prev"></button>
+      <span id="evPage">-</span>
+      <button id="evNext" onclick="evNextPage()" disabled data-i18n="pag.next"></button>
+    </div>
+  </div>
+</div>
+
+<!-- SCREENSHOTS -->
+<div class="tab-content" id="tab-screenshots">
+  <div class="filters">
+    <select id="ssHost"><option value="" data-i18n="filter.allHosts"></option></select>
+    <input type="date" id="ssFrom"><input type="date" id="ssTo">
+    <input type="text" id="ssSearch">
+    <button class="btn" onclick="loadScreenshots()" data-i18n="filter.apply"></button>
+    <button class="btn btn-ghost" onclick="resetSsFilter()" data-i18n="filter.reset"></button>
+    <span class="count-label" id="ssCount"></span>
+  </div>
+  <div class="ss-toolbar">
+    <button class="btn btn-ghost btn-sm" id="btnSelectMode" style="display:none" onclick="toggleSelectMode()" data-i18n="ss.selectMultiple"></button>
+    <button class="btn btn-red btn-sm" id="btnDeleteSelected" style="display:none" onclick="deleteSelected()"><span data-i18n="ss.deleteSelected"></span> (<span id="selCount">0</span>)</button>
+    <button class="btn btn-ghost btn-sm" id="btnSelectAll" style="display:none" onclick="selectAll()" data-i18n="ss.selectAll"></button>
+    <button class="btn btn-ghost btn-sm" id="btnCancelSelect" style="display:none" onclick="exitSelectMode()" data-i18n="ss.cancel"></button>
+  </div>
+  <div class="ss-grid" id="ssGrid"><div class="loading"><span class="loader"></span><span data-i18n="events.loading"></span></div></div>
+  <div class="pagination">
+    <button id="ssPrev" onclick="ssPrevPage()" disabled data-i18n="pag.prev"></button>
+    <span id="ssPage">-</span>
+    <button id="ssNext" onclick="ssNextPage()" disabled data-i18n="pag.next"></button>
+  </div>
+</div>
+
+<!-- KEYLOGGER -->
+<div class="tab-content" id="tab-keylogger">
+  <div class="filters">
+    <select id="klHost"><option value="" data-i18n="filter.allHosts"></option></select>
+    <input type="date" id="klFrom"><input type="date" id="klTo">
+    <input type="text" id="klSearch">
+    <button class="btn" onclick="loadKeylogger()" data-i18n="filter.apply"></button>
+    <button class="btn btn-ghost" onclick="resetKlFilter()" data-i18n="filter.reset"></button>
+    <span class="count-label" id="klCount"></span>
+  </div>
+  <div class="kl-wrap" id="klWrap"><div class="loading"><span class="loader"></span><span data-i18n="events.loading"></span></div></div>
+  <div class="pagination">
+    <button id="klPrev" onclick="klPrevPage()" disabled data-i18n="pag.prev"></button>
+    <span id="klPage">-</span>
+    <button id="klNext" onclick="klNextPage()" disabled data-i18n="pag.next"></button>
+  </div>
+</div>
+
+<!-- AGENTS -->
+<div class="tab-content" id="tab-agents">
+  <div style="padding:16px 24px">
+    <div class="broadcast-panel" id="broadcastPanel" style="display:none">
+      <h3 data-i18n="broadcast.title"></h3>
+      <div class="broadcast-actions" id="broadcastActions"></div>
+    </div>
+    <div id="agentsList"><div class="loading"><span class="loader"></span><span data-i18n="events.loading"></span></div></div>
+    <div class="pagination" id="agentsPag" style="display:none">
+      <button id="agentsPrev" onclick="agentsPrevPage()" disabled data-i18n="pag.prev"></button>
+      <span id="agentsPage">-</span>
+      <button id="agentsNext" onclick="agentsNextPage()" disabled data-i18n="pag.next"></button>
+    </div>
+    <div id="dataMgmtPanel" style="display:none;margin-top:20px">
+      <div class="broadcast-panel">
+        <h3 data-i18n="data.title"></h3>
+        <div style="display:flex;gap:10px;flex-wrap:wrap" id="dataDelButtons"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MANAGEMENT -->
+<div class="tab-content" id="tab-management">
+  <div class="mgmt-wrap">
+    <div class="form-card">
+      <h3 data-i18n="mgmt.addUser"></h3>
+      <div class="form-row">
+        <div class="form-field"><label data-i18n="mgmt.loginLabel"></label><input type="text" id="newUsername"></div>
+        <div class="form-field"><label data-i18n="mgmt.passwordLabel"></label><input type="password" id="newPassword"></div>
+        <div class="form-field"><label data-i18n="mgmt.roleLabel"></label>
+          <select id="newRole">
+            <option value="viewer" data-i18n="mgmt.viewerRole"></option>
+            <option value="admin" data-i18n="mgmt.adminRole"></option>
+          </select>
+        </div>
+        <button class="btn" onclick="createUser()" style="align-self:flex-end" data-i18n="mgmt.create"></button>
+      </div>
+    </div>
+    <div class="user-table-card">
+      <table>
+        <thead><tr>
+          <th data-i18n="mgmt.loginCol"></th>
+          <th data-i18n="mgmt.roleCol"></th>
+          <th data-i18n="mgmt.statusCol"></th>
+          <th data-i18n="mgmt.createdCol"></th>
+          <th data-i18n="mgmt.lastLoginCol"></th>
+          <th></th>
+        </tr></thead>
+        <tbody id="usersBody"><tr><td colspan="6" class="loading"><span class="loader"></span></td></tr></tbody>
+      </table>
+    </div>
+    <div class="tg-section">
+      <h3 data-i18n="mgmt.tgTitle"></h3>
+      <div id="tgStatus" class="tg-status disabled" data-i18n="mgmt.tgNotConfigured"></div>
+      <p data-i18n="mgmt.tgDesc"></p>
+      <p style="color:var(--text3);font-size:12px" data-i18n="mgmt.tgSettings"></p>
+      <div style="margin-top:10px;background:var(--bg3);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:12px;color:var(--text2)">
+        <span data-i18n="mgmt.tgModules"></span> <span id="tgModules" style="color:var(--cyan)">...</span>
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="testTelegram()" data-i18n="mgmt.tgSendTest"></button>
+        <button class="btn btn-ghost btn-sm" onclick="checkTelegramStatus()" data-i18n="mgmt.tgRefresh"></button>
+      </div>
+    </div>
+    <div class="form-card">
+      <h3 data-i18n="mgmt.changePassword"></h3>
+      <div class="form-row">
+        <div class="form-field"><label data-i18n="mgmt.oldPassword"></label><input type="password" id="oldPassword"></div>
+        <div class="form-field"><label data-i18n="mgmt.newPassword"></label><input type="password" id="newPw"></div>
+        <div class="form-field"><label data-i18n="mgmt.repeatPassword"></label><input type="password" id="newPw2"></div>
+        <button class="btn" onclick="changePassword()" style="align-self:flex-end" data-i18n="mgmt.changePwBtn"></button>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- AUDIT LOG -->
+<div class="tab-content" id="tab-audit">
+  <div class="filters">
+    <button class="btn btn-ghost btn-sm" onclick="loadAuditLog()" data-i18n="filter.apply"></button>
+    <span class="count-label" id="auditCount"></span>
+  </div>
+  <div class="table-wrap">
+    <table class="events-table">
+      <thead><tr>
+        <th data-i18n="events.time"></th>
+        <th data-i18n="audit.admin"></th>
+        <th>IP</th>
+        <th data-i18n="audit.action"></th>
+        <th data-i18n="audit.target"></th>
+        <th data-i18n="audit.detail"></th>
+      </tr></thead>
+      <tbody id="auditBody"></tbody>
+    </table>
+    <div class="pagination">
+      <button id="auditPrev" onclick="auditPrevPage()" disabled data-i18n="pag.prev"></button>
+      <span id="auditPage">-</span>
+      <button id="auditNext" onclick="auditNextPage()" disabled data-i18n="pag.next"></button>
+    </div>
+  </div>
+</div>
+
+<!-- AUDIT LOG -->
+<div class="tab-content" id="tab-audit">
+  <div class="filters">
+    <input type="text" id="auditSearch" style="width:250px">
+    <button class="btn" onclick="loadAuditLog()" data-i18n="filter.apply"></button>
+    <button class="btn btn-ghost" onclick="resetAuditFilter()" data-i18n="filter.reset"></button>
+    <span class="count-label" id="auditCount"></span>
+  </div>
+  <div class="table-wrap">
+    <table class="events-table">
+      <thead><tr>
+        <th data-i18n="audit.time"></th>
+        <th data-i18n="audit.admin"></th>
+        <th data-i18n="audit.action"></th>
+        <th data-i18n="audit.target"></th>
+        <th data-i18n="audit.detail"></th>
+        <th data-i18n="audit.ip"></th>
+      </tr></thead>
+      <tbody id="auditBody"><tr><td colspan="6" class="loading"><span class="loader"></span><span data-i18n="events.loading"></span></td></tr></tbody>
+    </table>
+    <div class="pagination">
+      <button id="auditPrev" onclick="auditPrevPage()" disabled data-i18n="pag.prev"></button>
+      <span id="auditPage">-</span>
+      <button id="auditNext" onclick="auditNextPage()" disabled data-i18n="pag.next"></button>
+    </div>
+  </div>
+</div>
+
+<div class="modal" id="ssModal" onclick="closeModal(event)">
+  <div class="modal-inner" onclick="event.stopPropagation()">
+    <button class="modal-close" onclick="closeModal()">&#10007;</button>
+    <img id="modalImg" src="" alt="">
+    <div class="modal-footer">
+      <div class="modal-meta" id="modalMeta"></div>
+      <button class="modal-del-btn" id="modalDelBtn" onclick="deleteCurrentScreenshot()" style="display:none" data-i18n="modal.delete"></button>
+    </div>
+  </div>
+</div>
+
+<div class="confirm-overlay" id="confirmOverlay">
+  <div class="confirm-box">
+    <h3 id="confirmTitle" data-i18n="confirm.action"></h3>
+    <p id="confirmDesc"></p>
+    <div class="confirm-btns">
+      <button class="btn btn-ghost" onclick="closeConfirm()" data-i18n="confirm.cancel"></button>
+      <button class="btn btn-red" id="confirmOkBtn" onclick="doConfirmedCmd()" data-i18n="confirm.execute"></button>
+    </div>
+  </div>
+</div>
+<script>
+
+// ── Translations ──────────────────────────────────────────────────────────
+const LANG = {
+en:{
+  'login.subtitle':'Enter your credentials','login.username':'Username','login.password':'Password',
+  'login.submit':'Sign In','login.submitting':'Signing in...','login.error':'Enter username and password',
+  'login.serverError':'Server unavailable','login.blocked':'Blocked. Try in {m}m {s}s','login.tryAgain':'You can try again.',
+  'header.autoRefresh':'auto 30s','header.logout':'Logout',
+  'stats.totalEvents':'Total Events','stats.alertsToday':'Alerts Today','stats.activeHosts':'Active Hosts',
+  'stats.lastEvent':'Last Event','stats.last24h':'last 24h','stats.db':'DB:','stats.screenshots':'Screenshots:',
+  'tab.events':'Events','tab.screenshots':'Screenshots','tab.keylogger':'Keylogger',
+  'tab.agents':'Agents','tab.management':'Management','tab.audit':'Audit Log',
+  'filter.allModules':'All Modules','filter.allHosts':'All Hosts','filter.search':'Search...',
+  'filter.apply':'Apply','filter.reset':'Reset','filter.found':'Found:',
+  'filter.searchWindow':'Search by window / process...','filter.searchKeys':'Search keystrokes...',
+  'events.time':'Time','events.host':'Host','events.user':'User','events.module':'Module',
+  'events.message':'Message','events.data':'Data','events.noEvents':'No events','events.loading':'Loading...',
+  'ss.selectMultiple':'Select multiple','ss.deleteSelected':'Delete selected','ss.selectAll':'Select all on page',
+  'ss.cancel':'Cancel','ss.notFound':'No screenshots found',
+  'modal.delete':'Delete',
+  'kl.sessions':'Sessions:','kl.noData':'No keylogger data',
+  'agents.noAgents':'No agents','agents.events':'events','agents.lastSeen':'Last seen:',
+  'agents.online':'Online','agents.offline':'Offline','agents.history':'History',
+  'agents.noCommands':'No commands','agents.lastCommands':'Last commands','audit.admin':'Admin','audit.action':'Action','audit.target':'Target','audit.detail':'Detail',
+  'btn.start':'Start','btn.restart':'Restart','btn.stop':'Stop','btn.uninstall':'Uninstall',
+  'btn.fromList':'Remove','btn.screenshots':'Screenshots','btn.events':'Events',
+  'broadcast.title':'Broadcast Commands',
+  'broadcast.startAll':'Start All','broadcast.restartAll':'Restart All',
+  'broadcast.stopAll':'Stop All','broadcast.uninstallAll':'Uninstall All',
+  'confirm.startAgent':'Start agent?','confirm.startAgentDesc':'Works if process is still alive.',
+  'confirm.restartAgent':'Restart agent?','confirm.restartAgentDesc':'Agent will restart.',
+  'confirm.stopAgent':'Stop agent?','confirm.stopAgentDesc':'Monitoring will be stopped.',
+  'confirm.uninstallAgent':'Uninstall agent?','confirm.uninstallAgentDesc':'Agent will be permanently removed!',
+  'confirm.startAll':'Start ALL agents?','confirm.startAllDesc':'Works for stopped processes.',
+  'confirm.restartAll':'Restart ALL agents?','confirm.restartAllDesc':'Agents will restart in ~30 seconds.',
+  'confirm.stopAll':'Stop ALL agents?','confirm.stopAllDesc':'All agents will stop monitoring.',
+  'confirm.uninstallAll':'Uninstall ALL agents?','confirm.uninstallAllDesc':'WARNING: agents will be permanently removed!',
+  'data.title':'Server Data Management','data.allScreenshots':'All Screenshots','data.allEvents':'All Events',
+  'data.deleteAllSs':'Delete ALL screenshots?','data.deleteAllSsDesc':'All screenshots will be permanently deleted.',
+  'data.deleteAllEv':'Delete ALL events?','data.deleteAllEvDesc':'All events will be permanently deleted.',
+  'mgmt.addUser':'Add User','mgmt.loginLabel':'Username','mgmt.passwordLabel':'Password',
+  'mgmt.roleLabel':'Role','mgmt.create':'Create',
+  'mgmt.viewerRole':'viewer — read only','mgmt.adminRole':'admin — full access',
+  'mgmt.loginCol':'Username','mgmt.roleCol':'Role','mgmt.statusCol':'Status',
+  'mgmt.createdCol':'Created','mgmt.lastLoginCol':'Last Login','mgmt.delete':'Delete',
+  'mgmt.pwOk':'OK','mgmt.pwChange':'Change password','mgmt.never':'never',
+  'mgmt.tgTitle':'Telegram Notifications',
+  'mgmt.tgNotConfigured':'Not configured','mgmt.tgConfigured':'Configured and working',
+  'mgmt.tgDesc':'When alerts fire (USB, Clipboard, Process, DNS) a Telegram notification is sent automatically.',
+  'mgmt.tgSettings':'Setup: add BotToken and ChatId to appsettings.json section "Telegram"',
+  'mgmt.tgModules':'Alert modules from config:','mgmt.tgAllAlerts':'ALL alerts','mgmt.tgNotSet':'not set',
+  'mgmt.tgSendTest':'Send test','mgmt.tgRefresh':'Refresh',
+  'mgmt.changePassword':'Change Your Password','mgmt.oldPassword':'Old Password',
+  'mgmt.newPassword':'New Password','mgmt.repeatPassword':'Repeat','mgmt.changePwBtn':'Change',
+  'forcePw.title':'Change Password','forcePw.desc':'You are using the default password. Set a new password before using the system.',
+  'forcePw.current':'Current password','forcePw.new':'New password (min. 12 chars)',
+  'forcePw.repeat':'Repeat new password',
+  'forcePw.hint':'Requirements: min. 12 chars, uppercase, lowercase, digits, special chars',
+  'forcePw.submit':'Set Password',
+  'confirm.action':'Confirm','confirm.cancel':'Cancel','confirm.execute':'Execute',
+  'pag.prev':'\u2190 Back','pag.next':'Forward \u2192',
+  'status.online':'Online','status.offline':'No connection',
+  'toast.csvLoading':'Preparing CSV, please wait...','toast.csvDownloaded':'CSV downloaded ({size} KB)',
+  'toast.screenshotDeleted':'Screenshot deleted',
+  'toast.commandSent':'Command sent (id={id})','toast.agentRemoved':'{host} removed',
+  'toast.dataDeleted':'{label} deleted ({count} records)',
+  'toast.userCreated':'User "{u}" created','toast.userDeleted':'"{u}" deleted',
+  'toast.passwordChanged':'Password changed','toast.passwordChangedSuccess':'Password successfully changed',
+  'toast.tgTestSent':'Test message sent!','toast.sessionExpired':'Session expired, logging out...',
+  'err.fillFields':'Enter username and password',
+  'err.passwordMismatch':'New passwords do not match',
+  'err.passwordTooShort':'Password minimum 12 characters',
+  'err.passwordNoUpper':'Password must contain uppercase letters',
+  'err.passwordNoLower':'Password must contain lowercase letters',
+  'err.passwordNoDigit':'Password must contain digits',
+  'err.passwordNoSpecial':'Password must contain special characters (!@#$% etc.)',
+  'health.checking':'...',
+  'tab.audit':'Audit Log',
+  'audit.time':'Time','audit.admin':'Admin','audit.action':'Action',
+  'audit.target':'Target','audit.detail':'Detail','audit.ip':'IP',
+  'audit.noData':'No audit records',
+  'loading':'Loading...','error.server':'Server error (500)','error.notFound':'Not found (404)',
+  'error.rateLimit':'Too many requests (429)',
+  'tab.audit':'Audit Log',
+  'audit.time':'Time','audit.admin':'Admin','audit.action':'Action',
+  'audit.target':'Target','audit.detail':'Detail','audit.ip':'IP',
+  'audit.noData':'No audit records'
+},
+ru:{
+  'login.subtitle':'\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u0434\u0430\u043d\u043d\u044b\u0435 \u0434\u043b\u044f \u0432\u0445\u043e\u0434\u0430',
+  'login.username':'\u041b\u043e\u0433\u0438\u043d','login.password':'\u041f\u0430\u0440\u043e\u043b\u044c',
+  'login.submit':'\u0412\u043e\u0439\u0442\u0438','login.submitting':'\u0412\u0445\u043e\u0434...',
+  'login.error':'\u0412\u0432\u0435\u0434\u0438\u0442\u0435 \u043b\u043e\u0433\u0438\u043d \u0438 \u043f\u0430\u0440\u043e\u043b\u044c',
+  'login.serverError':'\u0421\u0435\u0440\u0432\u0435\u0440 \u043d\u0435\u0434\u043e\u0441\u0442\u0443\u043f\u0435\u043d',
+  'login.blocked':'\u0417\u0430\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u043d\u043e. \u041f\u043e\u043f\u0440\u043e\u0431\u0443\u0439\u0442\u0435 \u0447\u0435\u0440\u0435\u0437 {m}\u043c {s}\u0441',
+  'login.tryAgain':'\u041c\u043e\u0436\u043d\u043e \u043f\u043e\u043f\u0440\u043e\u0431\u043e\u0432\u0430\u0442\u044c \u0441\u043d\u043e\u0432\u0430.',
+  'header.autoRefresh':'\u0430\u0432\u0442\u043e 30\u0441','header.logout':'\u0412\u044b\u0439\u0442\u0438',
+  'stats.totalEvents':'\u0412\u0441\u0435\u0433\u043e \u0441\u043e\u0431\u044b\u0442\u0438\u0439',
+  'stats.alertsToday':'\u0410\u043b\u0435\u0440\u0442\u043e\u0432 \u0441\u0435\u0433\u043e\u0434\u043d\u044f',
+  'stats.activeHosts':'\u0410\u043a\u0442\u0438\u0432\u043d\u044b\u0445 \u0445\u043e\u0441\u0442\u043e\u0432',
+  'stats.lastEvent':'\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u0435',
+  'stats.last24h':'\u0437\u0430 24\u0447','stats.db':'\u0411\u0414:','\u0441\u0442\u0430\u0442\u0441.screenshots':'\u0421\u043a\u0440\u0438\u043d\u0448\u043e\u0442\u044b:',
+  'stats.screenshots':'\u0421\u043a\u0440\u0438\u043d\u0448\u043e\u0442\u044b:',
+  'tab.events':'\u0421\u043e\u0431\u044b\u0442\u0438\u044f','tab.screenshots':'\u0421\u043a\u0440\u0438\u043d\u0448\u043e\u0442\u044b',
+  'tab.keylogger':'\u041a\u0435\u0439\u043b\u043e\u0433\u0433\u0435\u0440','tab.agents':'\u0410\u0433\u0435\u043d\u0442\u044b',
+  'tab.management':'\u0423\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435','tab.audit':'\u0410\u0443\u0434\u0438\u0442',
+  'filter.allModules':'\u0412\u0441\u0435 \u043c\u043e\u0434\u0443\u043b\u0438',
+  'filter.allHosts':'\u0412\u0441\u0435 \u0445\u043e\u0441\u0442\u044b',
+  'filter.search':'\u041f\u043e\u0438\u0441\u043a...',
+  'filter.apply':'\u041f\u0440\u0438\u043c\u0435\u043d\u0438\u0442\u044c','filter.reset':'\u0421\u0431\u0440\u043e\u0441\u0438\u0442\u044c',
+  'filter.found':'\u041d\u0430\u0439\u0434\u0435\u043d\u043e:',
+  'filter.searchWindow':'\u041f\u043e\u0438\u0441\u043a \u043f\u043e \u043e\u043a\u043d\u0443 / \u043f\u0440\u043e\u0446\u0435\u0441\u0441\u0443...',
+  'filter.searchKeys':'\u041f\u043e\u0438\u0441\u043a \u043f\u043e \u043d\u0430\u0436\u0430\u0442\u0438\u044f\u043c...',
+  'events.time':'\u0412\u0440\u0435\u043c\u044f','events.host':'\u0425\u043e\u0441\u0442','events.user':'\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c',
+  'events.module':'\u041c\u043e\u0434\u0443\u043b\u044c','events.message':'\u0421\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435','events.data':'\u0414\u0430\u043d\u043d\u044b\u0435',
+  'events.noEvents':'\u041d\u0435\u0442 \u0441\u043e\u0431\u044b\u0442\u0438\u0439','events.loading':'\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430...',
+  'ss.selectMultiple':'\u0412\u044b\u0431\u0440\u0430\u0442\u044c \u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e',
+  'ss.deleteSelected':'\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0432\u044b\u0431\u0440\u0430\u043d\u043d\u044b\u0435',
+  'ss.selectAll':'\u0412\u044b\u0431\u0440\u0430\u0442\u044c \u0432\u0441\u0435 \u043d\u0430 \u0441\u0442\u0440\u0430\u043d\u0438\u0446\u0435',
+  'ss.cancel':'\u041e\u0442\u043c\u0435\u043d\u0430','ss.notFound':'\u0421\u043a\u0440\u0438\u043d\u0448\u043e\u0442\u044b \u043d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u044b',
+  'modal.delete':'\u0423\u0434\u0430\u043b\u0438\u0442\u044c',
+  'kl.sessions':'\u0421\u0435\u0441\u0441\u0438\u0439:','kl.noData':'\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445 \u043a\u0435\u0439\u043b\u043e\u0433\u0433\u0435\u0440\u0430',
+  'agents.noAgents':'\u041d\u0435\u0442 \u0430\u0433\u0435\u043d\u0442\u043e\u0432',
+  'agents.events':'\u0441\u043e\u0431\u044b\u0442\u0438\u0439','agents.lastSeen':'\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0439 \u0440\u0430\u0437:',
+  'agents.online':'Online','agents.offline':'Offline',
+  'agents.history':'\u0418\u0441\u0442\u043e\u0440\u0438\u044f','agents.noCommands':'\u041a\u043e\u043c\u0430\u043d\u0434 \u043d\u0435 \u0431\u044b\u043b\u043e',
+  'agents.lastCommands':'\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 \u043a\u043e\u043c\u0430\u043d\u0434\u044b','audit.admin':'\u0410\u0434\u043c\u0438\u043d','audit.action':'\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435','audit.target':'\u0426\u0435\u043b\u044c','audit.detail':'\u0414\u0435\u0442\u0430\u043b\u044c',
+  'btn.start':'Start','btn.restart':'Restart','btn.stop':'Stop','btn.uninstall':'Uninstall',
+  'btn.fromList':'\u0418\u0437 \u0441\u043f\u0438\u0441\u043a\u0430',
+  'btn.screenshots':'\u0421\u043a\u0440\u0438\u043d','btn.events':'\u0421\u043e\u0431\u044b\u0442\u0438\u044f',
+  'broadcast.title':'\u041a\u043e\u043c\u0430\u043d\u0434\u044b \u0432\u0441\u0435\u043c \u0430\u0433\u0435\u043d\u0442\u0430\u043c',
+  'broadcast.startAll':'\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c \u0432\u0441\u0435\u0445',
+  'broadcast.restartAll':'\u041f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c \u0432\u0441\u0435\u0445',
+  'broadcast.stopAll':'\u041e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u0432\u0441\u0435\u0445',
+  'broadcast.uninstallAll':'\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0432\u0441\u0435\u0445',
+  'confirm.startAgent':'\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c \u0430\u0433\u0435\u043d\u0442?',
+  'confirm.startAgentDesc':'\u0420\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u0435\u0441\u043b\u0438 \u043f\u0440\u043e\u0446\u0435\u0441\u0441 \u0435\u0449\u0451 \u0436\u0438\u0432.',
+  'confirm.restartAgent':'\u041f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c \u0430\u0433\u0435\u043d\u0442?',
+  'confirm.restartAgentDesc':'\u0410\u0433\u0435\u043d\u0442 \u043f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u0441\u044f.',
+  'confirm.stopAgent':'\u041e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u0430\u0433\u0435\u043d\u0442?',
+  'confirm.stopAgentDesc':'\u041c\u043e\u043d\u0438\u0442\u043e\u0440\u0438\u043d\u0433 \u0431\u0443\u0434\u0435\u0442 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d.',
+  'confirm.uninstallAgent':'\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0430\u0433\u0435\u043d\u0442?',
+  'confirm.uninstallAgentDesc':'\u0410\u0433\u0435\u043d\u0442 \u0431\u0443\u0434\u0435\u0442 \u0443\u0434\u0430\u043b\u0451\u043d \u0431\u0435\u0437\u0432\u043e\u0437\u0432\u0440\u0430\u0442\u043d\u043e!',
+  'confirm.startAll':'\u0417\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c \u0412\u0421\u0415 \u0430\u0433\u0435\u043d\u0442\u044b?',
+  'confirm.startAllDesc':'\u0420\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u0434\u043b\u044f \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043b\u0435\u043d\u043d\u044b\u0445 \u043f\u0440\u043e\u0446\u0435\u0441\u0441\u043e\u0432.',
+  'confirm.restartAll':'\u041f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c \u0412\u0421\u0415?',
+  'confirm.restartAllDesc':'\u0410\u0433\u0435\u043d\u0442\u044b \u043f\u0435\u0440\u0435\u0437\u0430\u043f\u0443\u0441\u0442\u044f\u0442\u0441\u044f \u0447\u0435\u0440\u0435\u0437 ~30 \u0441\u0435\u043a\u0443\u043d\u0434.',
+  'confirm.stopAll':'\u041e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u0412\u0421\u0415?',
+  'confirm.stopAllDesc':'\u0412\u0441\u0435 \u0430\u0433\u0435\u043d\u0442\u044b \u043f\u0440\u0435\u043a\u0440\u0430\u0442\u044f\u0442 \u043c\u043e\u043d\u0438\u0442\u043e\u0440\u0438\u043d\u0433.',
+  'confirm.uninstallAll':'\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0412\u0421\u0415?',
+  'confirm.uninstallAllDesc':'\u0412\u041d\u0418\u041c\u0410\u041d\u0418\u0415: \u0443\u0434\u0430\u043b\u044f\u0442\u0441\u044f \u0441 \u043c\u0430\u0448\u0438\u043d \u0431\u0435\u0437\u0432\u043e\u0437\u0432\u0440\u0430\u0442\u043d\u043e!',
+  'data.title':'\u0423\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u0435 \u0434\u0430\u043d\u043d\u044b\u043c\u0438 \u0441\u0435\u0440\u0432\u0435\u0440\u0430',
+  'data.allScreenshots':'\u0412\u0441\u0435 \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442\u044b',
+  'data.allEvents':'\u0412\u0441\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u044f',
+  'data.deleteAllSs':'\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0412\u0421\u0415 \u0441\u043a\u0440\u0438\u043d\u0448\u043e\u0442\u044b?',
+  'data.deleteAllSsDesc':'\u0411\u0443\u0434\u0443\u0442 \u0443\u0434\u0430\u043b\u0435\u043d\u044b \u0441 \u0441\u0435\u0440\u0432\u0435\u0440\u0430 \u0431\u0435\u0437\u0432\u043e\u0437\u0432\u0440\u0430\u0442\u043d\u043e.',
+  'data.deleteAllEv':'\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u0412\u0421\u0415 \u0441\u043e\u0431\u044b\u0442\u0438\u044f?',
+  'data.deleteAllEvDesc':'\u0412\u0441\u0435 \u0441\u043e\u0431\u044b\u0442\u0438\u044f \u0431\u0443\u0434\u0443\u0442 \u0443\u0434\u0430\u043b\u0435\u043d\u044b \u0438\u0437 \u0411\u0414 \u0431\u0435\u0437\u0432\u043e\u0437\u0432\u0440\u0430\u0442\u043d\u043e.',
+  'mgmt.addUser':'\u0414\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044f',
+  'mgmt.loginLabel':'\u041b\u043e\u0433\u0438\u043d','mgmt.passwordLabel':'\u041f\u0430\u0440\u043e\u043b\u044c',
+  'mgmt.roleLabel':'\u0420\u043e\u043b\u044c','mgmt.create':'\u0421\u043e\u0437\u0434\u0430\u0442\u044c',
+  'mgmt.viewerRole':'viewer \u2014 \u043f\u0440\u043e\u0441\u043c\u043e\u0442\u0440',
+  'mgmt.adminRole':'admin \u2014 \u043f\u043e\u043b\u043d\u044b\u0439 \u0434\u043e\u0441\u0442\u0443\u043f',
+  'mgmt.loginCol':'\u041b\u043e\u0433\u0438\u043d','mgmt.roleCol':'\u0420\u043e\u043b\u044c',
+  'mgmt.statusCol':'\u0421\u0442\u0430\u0442\u0443\u0441','mgmt.createdCol':'\u0421\u043e\u0437\u0434\u0430\u043d',
+  'mgmt.lastLoginCol':'\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0439 \u0432\u0445\u043e\u0434',
+  'mgmt.delete':'\u0423\u0434\u0430\u043b\u0438\u0442\u044c','mgmt.pwOk':'OK',
+  'mgmt.pwChange':'\u0421\u043c\u0435\u043d\u0438\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c',
+  'mgmt.never':'\u043d\u0438\u043a\u043e\u0433\u0434\u0430',
+  'mgmt.tgTitle':'Telegram-\u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u044f',
+  'mgmt.tgNotConfigured':'\u041d\u0435 \u043d\u0430\u0441\u0442\u0440\u043e\u0435\u043d',
+  'mgmt.tgConfigured':'\u041d\u0430\u0441\u0442\u0440\u043e\u0435\u043d \u0438 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442',
+  'mgmt.tgDesc':'\u041f\u0440\u0438 \u0430\u043b\u0435\u0440\u0442\u0430\u0445 (USB, Clipboard, Process, DNS) \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u0442\u0441\u044f \u0443\u0432\u0435\u0434\u043e\u043c\u043b\u0435\u043d\u0438\u0435 \u0432 Telegram.',
+  'mgmt.tgSettings':'\u041d\u0430\u0441\u0442\u0440\u043e\u0439\u043a\u0430: BotToken \u0438 ChatId \u0432 appsettings.json',
+  'mgmt.tgModules':'\u0422\u0435\u043a\u0443\u0449\u0438\u0435 \u043c\u043e\u0434\u0443\u043b\u0438:',
+  'mgmt.tgAllAlerts':'\u0412\u0421\u0415 \u0430\u043b\u0435\u0440\u0442\u044b','mgmt.tgNotSet':'\u043d\u0435 \u0437\u0430\u0434\u0430\u043d\u043e',
+  'mgmt.tgSendTest':'\u041e\u0442\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u0442\u0435\u0441\u0442',
+  'mgmt.tgRefresh':'\u041e\u0431\u043d\u043e\u0432\u0438\u0442\u044c',
+  'mgmt.changePassword':'\u0421\u043c\u0435\u043d\u0438\u0442\u044c \u0441\u0432\u043e\u0439 \u043f\u0430\u0440\u043e\u043b\u044c',
+  'mgmt.oldPassword':'\u0421\u0442\u0430\u0440\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c',
+  'mgmt.newPassword':'\u041d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c',
+  'mgmt.repeatPassword':'\u041f\u043e\u0432\u0442\u043e\u0440','mgmt.changePwBtn':'\u0421\u043c\u0435\u043d\u0438\u0442\u044c',
+  'forcePw.title':'\u0421\u043c\u0435\u043d\u0438\u0442\u0435 \u043f\u0430\u0440\u043e\u043b\u044c',
+  'forcePw.desc':'\u0412\u044b \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0442\u0435 \u043f\u0430\u0440\u043e\u043b\u044c \u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e. \u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0435 \u043d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c.',
+  'forcePw.current':'\u0422\u0435\u043a\u0443\u0449\u0438\u0439 \u043f\u0430\u0440\u043e\u043b\u044c',
+  'forcePw.new':'\u041d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c (\u043c\u0438\u043d. 12 \u0441\u0438\u043c\u0432.)',
+  'forcePw.repeat':'\u041f\u043e\u0432\u0442\u043e\u0440\u0438\u0442\u0435 \u043d\u043e\u0432\u044b\u0439 \u043f\u0430\u0440\u043e\u043b\u044c',
+  'forcePw.hint':'\u0422\u0440\u0435\u0431\u043e\u0432\u0430\u043d\u0438\u044f: \u043c\u0438\u043d. 12 \u0441\u0438\u043c\u0432., \u0437\u0430\u0433\u043b\u0430\u0432\u043d\u044b\u0435, \u0441\u0442\u0440\u043e\u0447\u043d\u044b\u0435, \u0446\u0438\u0444\u0440\u044b, \u0441\u043f\u0435\u0446\u0441\u0438\u043c\u0432\u043e\u043b\u044b',
+  'forcePw.submit':'\u0423\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u044c \u043f\u0430\u0440\u043e\u043b\u044c',
+  'confirm.action':'\u041f\u043e\u0434\u0442\u0432\u0435\u0440\u0434\u0438\u0442\u0435',
+  'confirm.cancel':'\u041e\u0442\u043c\u0435\u043d\u0430','confirm.execute':'\u0412\u044b\u043f\u043e\u043b\u043d\u0438\u0442\u044c',
+  'pag.prev':'\u2190 \u041d\u0430\u0437\u0430\u0434','pag.next':'\u0412\u043f\u0435\u0440\u0451\u0434 \u2192',
+  'status.online':'Online','status.offline':'\u041d\u0435\u0442 \u0441\u0432\u044f\u0437\u0438',
+  'toast.csvLoading':'\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 CSV...',
+  'toast.csvDownloaded':'CSV \u0441\u043a\u0430\u0447\u0430\u043d ({size} \u041a\u0411)',
+  'toast.screenshotDeleted':'\u0421\u043a\u0440\u0438\u043d\u0448\u043e\u0442 \u0443\u0434\u0430\u043b\u0451\u043d',
+  'toast.commandSent':'\u041a\u043e\u043c\u0430\u043d\u0434\u0430 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0430 (id={id})',
+  'toast.agentRemoved':'{host} \u0443\u0434\u0430\u043b\u0451\u043d',
+  'toast.dataDeleted':'{label} \u0443\u0434\u0430\u043b\u0435\u043d\u044b ({count} \u0437\u0430\u043f\u0438\u0441\u0435\u0439)',
+  'toast.userCreated':'\u041f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044c "{u}" \u0441\u043e\u0437\u0434\u0430\u043d',
+  'toast.userDeleted':'"{u}" \u0443\u0434\u0430\u043b\u0451\u043d',
+  'toast.passwordChanged':'\u041f\u0430\u0440\u043e\u043b\u044c \u0438\u0437\u043c\u0435\u043d\u0451\u043d',
+  'toast.passwordChangedSuccess':'\u041f\u0430\u0440\u043e\u043b\u044c \u0443\u0441\u043f\u0435\u0448\u043d\u043e \u0438\u0437\u043c\u0435\u043d\u0451\u043d',
+  'toast.tgTestSent':'\u0422\u0435\u0441\u0442\u043e\u0432\u043e\u0435 \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u043e!',
+  'toast.sessionExpired':'\u0421\u0435\u0441\u0441\u0438\u044f \u0438\u0441\u0442\u0435\u043a\u043b\u0430, \u0432\u044b\u0445\u043e\u0434...',
+  'err.fillFields':'\u0417\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u0435 \u043b\u043e\u0433\u0438\u043d \u0438 \u043f\u0430\u0440\u043e\u043b\u044c',
+  'err.passwordMismatch':'\u041d\u043e\u0432\u044b\u0435 \u043f\u0430\u0440\u043e\u043b\u0438 \u043d\u0435 \u0441\u043e\u0432\u043f\u0430\u0434\u0430\u044e\u0442',
+  'err.passwordTooShort':'\u041f\u0430\u0440\u043e\u043b\u044c \u043c\u0438\u043d\u0438\u043c\u0443\u043c 12 \u0441\u0438\u043c\u0432\u043e\u043b\u043e\u0432',
+  'err.passwordNoUpper':'\u041d\u0443\u0436\u043d\u0430 \u0437\u0430\u0433\u043b\u0430\u0432\u043d\u0430\u044f \u0431\u0443\u043a\u0432\u0430',
+  'err.passwordNoLower':'\u041d\u0443\u0436\u043d\u0430 \u0441\u0442\u0440\u043e\u0447\u043d\u0430\u044f \u0431\u0443\u043a\u0432\u0430',
+  'err.passwordNoDigit':'\u041d\u0443\u0436\u043d\u0430 \u0446\u0438\u0444\u0440\u0430',
+  'err.passwordNoSpecial':'\u041d\u0443\u0436\u0435\u043d \u0441\u043f\u0435\u0446\u0441\u0438\u043c\u0432\u043e\u043b (!@#$% \u0438 \u0442.\u0434.)',
+    'health.checking':'...',
+  'tab.audit':'Аудит',
+  'audit.time':'Время','audit.admin':'Админ',
+  'audit.action':'Действие',
+  'audit.target':'Цель','audit.detail':'Детали',
+  'audit.ip':'IP адрес',
+  'audit.noData':'Нет записей аудита', 'tab.audit':'Audit Log',
+  'audit.time':'Time','audit.admin':'Admin','audit.action':'Action',
+  'audit.target':'Target','audit.detail':'Detail','audit.ip':'IP',
+  'audit.noData':'No audit records',
+  'loading':'\u0417\u0430\u0433\u0440\u0443\u0437\u043a\u0430...',
+  'error.server':'\u041e\u0448\u0438\u0431\u043a\u0430 \u0441\u0435\u0440\u0432\u0435\u0440\u0430 (500)',
+  'error.notFound':'\u041d\u0435 \u043d\u0430\u0439\u0434\u0435\u043d\u043e (404)',
+  'error.rateLimit':'\u0421\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e \u0437\u0430\u043f\u0440\u043e\u0441\u043e\u0432 (429)',
+  'tab.audit':'\u0410\u0443\u0434\u0438\u0442',
+  'audit.time':'\u0412\u0440\u0435\u043c\u044f',
+  'audit.admin':'\u0410\u0434\u043c\u0438\u043d',
+  'audit.action':'\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435',
+  'audit.target':'\u041e\u0431\u044a\u0435\u043a\u0442',
+  'audit.detail':'\u0414\u0435\u0442\u0430\u043b\u0438',
+  'audit.ip':'IP',
+  'audit.noData':'\u0417\u0430\u043f\u0438\u0441\u0435\u0439 \u043d\u0435\u0442'
+
+}
+};
+
+// ── i18n Engine ───────────────────────────────────────────────────────────
+let currentLang = localStorage.getItem('dlp_lang') || 'en';
+
+function t(key, vars){
+  const v = LANG[currentLang] || LANG['en'];
+  let s = v[key] || LANG['en'][key] || key;
+  if(vars) Object.keys(vars).forEach(k => s = s.replace(new RegExp('{'+k+'}','g'), vars[k]));
+  return s;
+}
+
+function applyTranslations(){
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.getAttribute('data-i18n');
+    el.textContent = t(key);
+  });
+  document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+    el.placeholder = t(el.getAttribute('data-i18n-placeholder'));
+  });
+  // Update dynamic placeholders
+  const fSearch = document.getElementById('fSearch');
+  if(fSearch) fSearch.placeholder = t('filter.search');
+  const ssSearch = document.getElementById('ssSearch');
+  if(ssSearch) ssSearch.placeholder = t('filter.searchWindow');
+  const klSearch = document.getElementById('klSearch');
+  if(klSearch) klSearch.placeholder = t('filter.searchKeys');
+  const newUsername = document.getElementById('newUsername');
+  if(newUsername) newUsername.placeholder = t('mgmt.loginLabel');
+  const newPassword = document.getElementById('newPassword');
+  if(newPassword) newPassword.placeholder = 'min. 12 chars';
+  // Update first option in selects
+  ['fModule','fHost','ssHost','klHost'].forEach(id => {
+    const sel = document.getElementById(id);
+    if(sel && sel.options.length > 0){
+      const first = sel.options[0];
+      const key = first.getAttribute('data-i18n');
+      if(key) first.textContent = t(key);
+    }
+  });
+  // Update broadcast buttons if visible
+  buildBroadcastButtons();
+  buildDataDelButtons();
+  // Update lang button
+  const lb = document.getElementById('langBtn');
+  if(lb) lb.textContent = currentLang.toUpperCase() === 'EN' ? 'RU' : 'EN';
+  document.title = 'ZavetSec DLP';
+}
+
+function toggleLanguage(){
+  currentLang = currentLang === 'en' ? 'ru' : 'en';
+  localStorage.setItem('dlp_lang', currentLang);
+  applyTranslations();
+}
+
+function buildBroadcastButtons(){
+  const div = document.getElementById('broadcastActions');
+  if(!div) return;
+  div.innerHTML = '';
+  function mk(cls,key,cmd,ctitle,cdesc){
+    const b = document.createElement('button');
+    b.className = 'btn '+cls;
+    b.textContent = t(key);
+    b.onclick = () => confirmCmd('*',cmd,t(ctitle),t(cdesc));
+    div.appendChild(b);
+  }
+  mk('btn-green','broadcast.startAll','start','confirm.startAll','confirm.startAllDesc');
+  mk('btn-yellow','broadcast.restartAll','restart','confirm.restartAll','confirm.restartAllDesc');
+  mk('btn-red','broadcast.stopAll','stop','confirm.stopAll','confirm.stopAllDesc');
+  mk('btn-red','broadcast.uninstallAll','uninstall','confirm.uninstallAll','confirm.uninstallAllDesc');
+}
+
+function buildDataDelButtons(){
+  const div = document.getElementById('dataDelButtons');
+  if(!div) return;
+  div.innerHTML = '';
+  function mk(key,type,titleKey,descKey){
+    const b = document.createElement('button');
+    b.className = 'btn btn-red';
+    b.textContent = '\uD83D\uDDD1 ' + t(key);
+    b.onclick = () => confirmDataDelete(type,t(titleKey),t(descKey));
+    div.appendChild(b);
+  }
+  mk('data.allScreenshots','all-screenshots','data.deleteAllSs','data.deleteAllSsDesc');
+  mk('data.allEvents','all-events','data.deleteAllEv','data.deleteAllEvDesc');
+}
+
+// ── Core State ────────────────────────────────────────────────────────────
+const EV_LIMIT=100,SS_LIMIT=20,KL_LIMIT=50,AGENTS_LIMIT=20;
+let evOffset=0,ssOffset=0,klOffset=0,evTotal=0,ssTotal=0,klTotal=0;
+let agentsOffset=0,agentsTotal=0;
+let timer=null,pendingCmd={host:'',cmd:''},pendingDataDelete={type:'',host:''};
+let authToken='',currentUser={username:'',role:''};
+let currentModalSsId=0,selectedSsIds=new Set(),selectModeActive=false;
+
+// ── Auth ──────────────────────────────────────────────────────────────────
+async function doLogin(){
+  const btn=document.getElementById('loginBtn'),err=document.getElementById('loginError');
+  const u=document.getElementById('loginUsername').value.trim(),p=document.getElementById('loginPassword').value;
+  err.textContent='';
+  if(!u||!p){err.textContent=t('err.fillFields');return;}
+  btn.disabled=true;btn.textContent=t('login.submitting');
+  try{
+    const r=await fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p})});
+    const d=await r.json();
+    if(r.status===429){
+      let secs=d.retryAfter||900;
+      const countdown=setInterval(()=>{
+        secs--;
+        if(secs<=0){clearInterval(countdown);err.textContent=t('login.tryAgain');btn.disabled=false;btn.textContent=t('login.submit');return;}
+        err.textContent=t('login.blocked',{m:Math.floor(secs/60),s:secs%60});
+      },1000);
+      err.textContent=t('login.blocked',{m:Math.floor(secs/60),s:secs%60});
+      return;
+    }
+    if(!r.ok){err.textContent=d.error||t('login.error');return;}
+    authToken=d.token;currentUser={username:d.username,role:d.role};
+    localStorage.setItem('dlp_token',authToken);
+    if(d.mustChangePassword){
+      document.getElementById('loginPage').classList.remove('active');
+      document.getElementById('forcePwOverlay').classList.add('open');
+    } else showApp();
+  }catch{err.textContent=t('login.serverError');}
+  finally{btn.disabled=false;btn.textContent=t('login.submit');}
+}
+
+async function doForcePwChange(){
+  const old=document.getElementById('forcePwOld').value,
+        np=document.getElementById('forcePwNew').value,
+        np2=document.getElementById('forcePwNew2').value;
+  const err=document.getElementById('forcePwError');err.textContent='';
+  if(np!==np2){err.textContent=t('err.passwordMismatch');return;}
+  const pe=validatePassword(np);if(pe){err.textContent=pe;return;}
+  try{
+    const r=await authFetch('/api/auth/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({oldPassword:old,newPassword:np})});
+    const d=await r.json();if(!r.ok){err.textContent=d.error||'Error';return;}
+    document.getElementById('forcePwOverlay').classList.remove('open');
+    showApp();showToast(t('toast.passwordChangedSuccess'),'success');
+  }catch(e){err.textContent=e.message;}
+}
+
+async function doLogout(){
+  try{await authFetch('/api/auth/logout',{method:'POST'});}catch{}
+  localStorage.removeItem('dlp_token');authToken='';
+  document.getElementById('app').classList.remove('active');
+  document.getElementById('loginPage').classList.add('active');
+  document.getElementById('loginPassword').value='';
+  clearInterval(timer);
+}
+
+function showApp(){
+  document.getElementById('loginPage').classList.remove('active');
+  document.getElementById('app').classList.add('active');
+  document.getElementById('headerUsername').textContent=currentUser.username;
+  document.getElementById('headerRole').textContent=currentUser.role;
+  if(currentUser.role==='admin'){
+    document.getElementById('tabMgmt').style.display='';
+    document.getElementById('tabAudit').style.display='';
+    document.getElementById('dataMgmtPanel').style.display='';
+    document.getElementById('broadcastPanel').style.display='';
+    document.getElementById('modalDelBtn').style.display='';
+    document.getElementById('diskBar').style.display='';
+    document.getElementById('btnSelectMode').style.display='';
+    document.getElementById('tabAudit').style.display='';
+    buildBroadcastButtons();
+    buildDataDelButtons();
+  }
+  applyTranslations();
+  loadStats();loadHosts();loadEvents();startTimer();
+}
+
+async function tryRestoreSession(){
+  const token=localStorage.getItem('dlp_token');if(!token)return;
+  authToken=token;
+  try{
+    const r=await fetch('/api/auth/me',{headers:{'Authorization':'Bearer '+token}});
+    if(r.ok){const me=await r.json();if(me&&me.username){currentUser={username:me.username,role:me.role};showApp();return;}}
+  }catch{}
+  localStorage.removeItem('dlp_token');authToken='';
+}
+
+async function authFetch(url,opts={}){
+  opts.headers=opts.headers||{};opts.headers['Authorization']='Bearer '+authToken;
+  const r=await fetch(url,opts);
+  if(r.status===401){showToast(t('toast.sessionExpired'),'error');setTimeout(doLogout,2000);throw new Error('Session expired');}
+  return r;
+}
+
+async function fetchJ(url){
+  const r=await authFetch(url);
+  if(r.status===404)throw new Error(t('error.notFound'));
+  if(r.status===429)throw new Error(t('error.rateLimit'));
+  if(r.status===500)throw new Error(t('error.server'));
+  if(!r.ok)throw new Error('Error '+r.status);
+  return r.json();
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(tc=>tc.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='screenshots'){ssOffset=0;exitSelectMode();loadScreenshots();}
+  else if(name==='keylogger'){klOffset=0;loadKeylogger();}
+  else if(name==='agents'){agentsOffset=0;loadAgents();}
+  else if(name==='management'){loadUsers();checkTelegramStatus();}
+  else if(name==='audit'){auditOffset=0;loadAuditLog();}
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function localTime(ts){if(!ts)return'-';try{return new Date(ts).toLocaleString(currentLang==='ru'?'ru-RU':'en-GB',{year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false});}catch{return ts;}}
+function fmtBytes(b){if(!b)return'0 B';if(b<1024)return b+' B';if(b<1048576)return(b/1024).toFixed(1)+' KB';if(b<1073741824)return(b/1048576).toFixed(1)+' MB';return(b/1073741824).toFixed(2)+' GB';}
+function extractProcess(w){if(!w)return'';const m=w.match(/\[([^\]]+)\s+PID:\d+\]/);return m?m[1]:'';}
+function extractTitle(w){if(!w)return w;return w.replace(/\s*\[[^\]]+\s+PID:\d+\]\s*$/,'').trim();}
+function h(s){return(s==null?'':String(s)).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function fmt(n){return Number(n).toLocaleString();}
+function shortUser(u){const p=(u||'').split('\\');return p[p.length-1];}
+function setStatus(ok){document.getElementById('statusDot').style.background=ok?'var(--green)':'var(--red)';document.getElementById('statusText').textContent=ok?t('status.online'):t('status.offline');}
+function badge(m){const u=m.toUpperCase();if(u.includes('ALERT')||u.includes('ERROR'))return'badge-alert';if(u.startsWith('KEYLOGGER'))return'badge-key';if(u.startsWith('CLIPBOARD'))return'badge-clip';if(u.startsWith('SCREENSHOT'))return'badge-ss';if(u.startsWith('NETWORK')||u.startsWith('DNS'))return'badge-net';if(u.startsWith('USB'))return'badge-usb';if(u.startsWith('FILE'))return'badge-file';if(u.startsWith('PROCESS'))return'badge-proc';return'badge-service';}
+function renderPag(pfx,offset,total,limit){
+  const pg=Math.floor(offset/limit)+1,pgs=Math.max(1,Math.ceil(total/limit));
+  const pageEl=document.getElementById(pfx+'Page');
+  if(pageEl)pageEl.textContent=t('pag.prev').includes('\u2190')?
+    'p. '+pg+' / '+pgs : pg+' / '+pgs;
+  document.getElementById(pfx+'Page').textContent=pg+' / '+pgs;
+  document.getElementById(pfx+'Prev').disabled=offset<=0;
+  document.getElementById(pfx+'Next').disabled=offset+limit>=total;
+}
+function showToast(msg,type){const el=document.createElement('div');el.className='toast '+(type||'');el.textContent=msg;document.body.appendChild(el);setTimeout(()=>el.remove(),4500);}
+function statusBadge(s){return{pending:{cls:'cs-pending',label:'pending'},delivered:{cls:'cs-delivered',label:'delivered'},executed:{cls:'cs-executed',label:'executed'},error:{cls:'cs-error',label:'error'}}[s]||{cls:'',label:s};}
+function val(id){return document.getElementById(id).value||'';}
+
+function validatePassword(pw){
+  if(pw.length<12)return t('err.passwordTooShort');
+  if(!/[A-Z]/.test(pw))return t('err.passwordNoUpper');
+  if(!/[a-z]/.test(pw))return t('err.passwordNoLower');
+  if(!/[0-9]/.test(pw))return t('err.passwordNoDigit');
+  if(!/[^A-Za-z0-9]/.test(pw))return t('err.passwordNoSpecial');
+  return null;
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────
+async function loadStats(){
+  try{
+    const s=await fetchJ('/api/stats');
+    document.getElementById('sTotal').textContent=fmt(s.totalEvents);
+    document.getElementById('sAlerts').textContent=fmt(s.alertsToday);
+    document.getElementById('sHosts').textContent=s.activeHosts;
+    document.getElementById('sLast').textContent=localTime(s.lastEventTs);
+    if(currentUser.role==='admin'&&document.getElementById('diskBar').style.display!=='none'){
+      document.getElementById('diskDb').textContent=fmtBytes(s.dbSizeBytes);
+      document.getElementById('diskSs').textContent=fmtBytes(s.screenshotBytes);
+    }
+    setStatus(true);
+  }catch{setStatus(false);}
+}
+async function loadHosts(){
+  try{const hosts=await fetchJ('/api/hosts');
+    ['fHost','ssHost','klHost'].forEach(id=>{
+      const sel=document.getElementById(id);
+      hosts.forEach(hn=>{if(!sel.querySelector('option[value="'+hn+'"]')){const o=document.createElement('option');o.value=o.textContent=hn;sel.appendChild(o);}});
+    });}catch{}
+}
+
+// ── Events ────────────────────────────────────────────────────────────────
+async function loadEvents(){
+  const p=new URLSearchParams({limit:EV_LIMIT,offset:evOffset,module:val('fModule'),host:val('fHost'),from:val('fFrom'),to:val('fTo'),search:val('fSearch')});
+  const body=document.getElementById('evBody');
+  body.innerHTML='<tr><td colspan="6" class="loading"><span class="loader"></span>'+t('events.loading')+'</td></tr>';
+  try{
+    const data=await fetchJ('/api/events?'+p);evTotal=data.total;
+    document.getElementById('evCount').textContent=t('filter.found')+' '+fmt(evTotal);
+    if(!data.events.length){body.innerHTML='<tr><td colspan="6" class="empty">'+t('events.noEvents')+'</td></tr>';return;}
+    body.innerHTML=data.events.map(ev=>{
+      const ts=localTime(ev.ts),isA=ev.module.includes('ALERT')||ev.module.includes('ERROR');
+      return `<tr style="${isA?'background:#2a1a1a':''}">
+        <td class="ts-cell">${ts}</td><td class="host-cell">${h(ev.host)}</td>
+        <td class="user-cell">${h(shortUser(ev.user))}</td>
+        <td><span class="badge ${badge(ev.module)}">${h(ev.module)}</span></td>
+        <td>${isA?'<b>':''}${h(ev.msg)}${isA?'</b>':''}</td>
+        <td class="data-cell" title="${h(ev.data)}">${h(ev.data)}</td></tr>`;
+    }).join('');
+    renderPag('ev',evOffset,evTotal,EV_LIMIT);setStatus(true);
+  }catch(e){body.innerHTML=`<tr><td colspan="6" class="empty" style="color:var(--red)">${e.message}</td></tr>`;}
+}
+function applyFilter(){evOffset=0;loadEvents();}
+function resetFilter(){['fModule','fHost'].forEach(id=>document.getElementById(id).value='');['fFrom','fTo','fSearch'].forEach(id=>document.getElementById(id).value='');evOffset=0;loadEvents();}
+function evPrevPage(){if(evOffset>=EV_LIMIT){evOffset-=EV_LIMIT;loadEvents();}}
+function evNextPage(){if(evOffset+EV_LIMIT<evTotal){evOffset+=EV_LIMIT;loadEvents();}}
+
+async function exportCsv(){
+  const p=new URLSearchParams({module:val('fModule'),host:val('fHost'),from:val('fFrom'),to:val('fTo'),search:val('fSearch')});
+  const btn=document.getElementById('csvBtn');
+  const orig=btn?btn.textContent:'CSV';
+  try{
+    if(btn){btn.disabled=true;btn.textContent='...';}
+    showToast(t('toast.csvLoading'),'');
+    const r=await authFetch('/api/export/events.csv?'+p);
+    if(!r.ok)throw new Error(await r.text());
+    const reader=r.body.getReader();const chunks=[];let received=0;
+    while(true){const{done,value}=await reader.read();if(done)break;chunks.push(value);received+=value.length;if(btn)btn.textContent=Math.round(received/1024)+' KB';}
+    const blob=new Blob(chunks,{type:'text/csv;charset=utf-8'});
+    const url=URL.createObjectURL(blob),a=document.createElement('a');
+    a.href=url;a.download='dlp-events-'+new Date().toISOString().slice(0,10)+'.csv';
+    a.click();URL.revokeObjectURL(url);
+    showToast(t('toast.csvDownloaded',{size:Math.round(blob.size/1024)}),'success');
+  }catch(e){showToast(t('toast.csvLoading')+': '+e.message,'error');}
+  finally{if(btn){btn.disabled=false;btn.textContent=orig;}}
+}
+
+// ── Screenshots ───────────────────────────────────────────────────────────
+async function loadScreenshots(){
+  const p=new URLSearchParams({limit:SS_LIMIT,offset:ssOffset,host:val('ssHost'),from:val('ssFrom'),to:val('ssTo'),search:val('ssSearch')});
+  const grid=document.getElementById('ssGrid');
+  grid.innerHTML='<div class="loading"><span class="loader"></span>'+t('events.loading')+'</div>';
+  selectedSsIds.clear();updateSelectionUI();
+  try{
+    const data=await fetchJ('/api/screenshots?'+p);ssTotal=data.total;
+    document.getElementById('ssCount').textContent=t('filter.found')+' '+fmt(ssTotal);
+    if(!data.screenshots.length){grid.innerHTML='<div class="empty">'+t('ss.notFound')+'</div>';renderPag('ss',ssOffset,ssTotal,SS_LIMIT);return;}
+    const frag=document.createDocumentFragment();
+    data.screenshots.forEach(s=>{
+      const ts=localTime(s.ts),proc=extractProcess(s.window),title=extractTitle(s.window);
+      const winShort=title.length>52?title.substring(0,52)+'\u2026':title;
+      const card=document.createElement('div');
+      card.className='ss-card'+(selectedSsIds.has(s.id)?' selected':'');
+      card.id='ssc-'+s.id;card.dataset.ssid=s.id;card.dataset.host=s.host||'';
+      card.dataset.ts=ts;card.dataset.trigger=s.trigger||'';card.dataset.res=s.resolution||'';card.dataset.win=s.window||'';
+      card.onclick=function(ev){ssCardClick(this,ev);};
+      const chk=document.createElement('input');chk.type='checkbox';chk.className='ss-check';chk.id='chk-'+s.id;
+      chk.checked=selectedSsIds.has(s.id);chk.onchange=function(){onCheckChange(s.id,this.checked);};chk.onclick=function(ev){ev.stopPropagation();};
+      const img=document.createElement('img');img.className='ss-thumb';img.loading='lazy';img.alt='';
+      img.src='/api/screenshots/'+s.id+'/image';img.onerror=function(){this.style.display='none';};
+      const info=document.createElement('div');info.className='ss-info';
+      const top=document.createElement('div');top.className='ss-info-top';
+      const hs=document.createElement('span');hs.className='ss-host';hs.textContent=s.host||'';top.appendChild(hs);
+      if(proc){const ps=document.createElement('span');ps.className='ss-proc';ps.textContent=proc;top.appendChild(ps);}
+      const meta=document.createElement('div');meta.className='ss-meta';meta.textContent=ts+' \xb7 '+(s.trigger||'')+' \xb7 '+(s.resolution||'');
+      const win=document.createElement('div');win.className='ss-window';win.textContent=winShort;
+      info.appendChild(top);info.appendChild(meta);info.appendChild(win);
+      card.appendChild(chk);card.appendChild(img);card.appendChild(info);frag.appendChild(card);
+    });
+    grid.innerHTML='';grid.appendChild(frag);
+    if(selectModeActive)grid.classList.add('select-mode');
+    renderPag('ss',ssOffset,ssTotal,SS_LIMIT);
+  }catch(e){grid.innerHTML='<div class="empty" style="color:var(--red)">'+e.message+'</div>';}
+}
+function ssCardClick(el,event){
+  if(selectModeActive){const chk=document.getElementById('chk-'+el.dataset.ssid);if(event.target!==chk){chk.checked=!chk.checked;onCheckChange(parseInt(el.dataset.ssid),chk.checked);}}
+  else openScreenshot(parseInt(el.dataset.ssid),el.dataset.host,el.dataset.ts,el.dataset.trigger,el.dataset.res,el.dataset.win);
+}
+function ssPrevPage(){if(ssOffset>=SS_LIMIT){ssOffset-=SS_LIMIT;loadScreenshots();}}
+function ssNextPage(){if(ssOffset+SS_LIMIT<ssTotal){ssOffset+=SS_LIMIT;loadScreenshots();}}
+function resetSsFilter(){['ssHost','ssFrom','ssTo','ssSearch'].forEach(id=>document.getElementById(id).value='');ssOffset=0;loadScreenshots();}
+function toggleSelectMode(){selectModeActive=!selectModeActive;const grid=document.getElementById('ssGrid');if(selectModeActive){grid.classList.add('select-mode');document.getElementById('btnSelectMode').style.display='none';document.getElementById('btnSelectAll').style.display='';document.getElementById('btnCancelSelect').style.display='';}else exitSelectMode();}
+function exitSelectMode(){selectModeActive=false;selectedSsIds.clear();document.getElementById('ssGrid').classList.remove('select-mode');document.querySelectorAll('.ss-check').forEach(c=>c.checked=false);document.querySelectorAll('.ss-card').forEach(c=>c.classList.remove('selected'));document.getElementById('btnSelectMode').style.display=currentUser.role==='admin'?'':'none';document.getElementById('btnSelectAll').style.display='none';document.getElementById('btnCancelSelect').style.display='none';document.getElementById('btnDeleteSelected').style.display='none';document.getElementById('selCount').textContent='0';}
+function selectAll(){document.querySelectorAll('.ss-card').forEach(card=>{const id=parseInt(card.dataset.ssid);selectedSsIds.add(id);card.classList.add('selected');const chk=document.getElementById('chk-'+id);if(chk)chk.checked=true;});updateSelectionUI();}
+function onCheckChange(id,checked){if(checked)selectedSsIds.add(id);else selectedSsIds.delete(id);const c=document.getElementById('ssc-'+id);if(c)c.classList.toggle('selected',checked);updateSelectionUI();}
+function updateSelectionUI(){const n=selectedSsIds.size;document.getElementById('selCount').textContent=n;document.getElementById('btnDeleteSelected').style.display=(selectModeActive&&n>0)?'':'none';}
+async function deleteSelected(){
+  const ids=[...selectedSsIds];if(!ids.length)return;
+  if(!confirm(t('ss.deleteConfirm',{n:ids.length})))return;
+  let ok=0,fail=0;
+  for(const id of ids){try{const r=await authFetch('/api/screenshots/'+id,{method:'DELETE'});if(r.ok)ok++;else fail++;}catch{fail++;}}
+  showToast(fail?t('ss.deletedErrors',{ok,fail}):t('ss.deleted',{ok}),fail?'error':'success');
+  exitSelectMode();loadScreenshots();loadStats();
+}
+function openScreenshot(id,host,ts,trigger,res,win){
+  currentModalSsId=id;
+  document.getElementById('modalImg').src='/api/screenshots/'+id+'/image';
+  const proc=extractProcess(win||''),title=extractTitle(win||'');
+  let meta=host+'  \xb7  '+ts+'  \xb7  '+trigger+'  \xb7  '+res;
+  if(title)meta+='\n'+title;if(proc)meta+='\n'+t('modal.process')+' '+proc;
+  document.getElementById('modalMeta').textContent=meta;
+  document.getElementById('ssModal').classList.add('open');
+}
+async function deleteCurrentScreenshot(){
+  if(!currentModalSsId)return;
+  if(!confirm(t('modal.deleteConfirm')||'Delete this screenshot?'))return;
+  try{const r=await authFetch('/api/screenshots/'+currentModalSsId,{method:'DELETE'});
+    if(!r.ok)throw new Error(await r.text());
+    closeModal();showToast(t('toast.screenshotDeleted'),'success');loadScreenshots();loadStats();}
+  catch(e){showToast(e.message,'error');}
+}
+function closeModal(e){if(!e||e.target===document.getElementById('ssModal')){document.getElementById('ssModal').classList.remove('open');currentModalSsId=0;}}
+document.addEventListener('keydown',e=>{if(e.key==='Escape')closeModal();});
+
+// ── Keylogger ─────────────────────────────────────────────────────────────
+async function loadKeylogger(){
+  const st=val('klSearch');
+  const p=new URLSearchParams({module:'KEYLOGGER',limit:KL_LIMIT,offset:klOffset,host:val('klHost'),from:val('klFrom'),to:val('klTo'),search:st});
+  const wrap=document.getElementById('klWrap');wrap.innerHTML='<div class="loading"><span class="loader"></span>'+t('events.loading')+'</div>';
+  try{
+    const data=await fetchJ('/api/events?'+p);klTotal=data.total;
+    document.getElementById('klCount').textContent=t('kl.sessions')+' '+fmt(klTotal);
+    if(!data.events.length){wrap.innerHTML='<div class="empty">'+t('kl.noData')+'</div>';renderPag('kl',klOffset,klTotal,KL_LIMIT);return;}
+    wrap.innerHTML=data.events.map((ev,i)=>{
+      const ts=localTime(ev.ts),d=ev.data||'',wm=d.match(/window=([^|]*)/),km=d.match(/keys=([\s\S]*)/);
+      const win=wm?wm[1]:'',keys=km?km[1]:d;
+      let kh=h(keys).replace(/\[([A-Z+<>^v\-]+)\]/g,'<span class="kl-tag">[$1]</span>');
+      if(st){const re=new RegExp('('+st.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+')','gi');kh=kh.replace(re,'<span class="kl-highlight">$1</span>');}
+      return `<div class="kl-session"><div class="kl-header" onclick="toggleKl(${i})"><span class="kl-host">${h(ev.host)}</span><span class="kl-win">${h(shortUser(ev.user))} \xb7 ${h(win)}</span><span class="kl-ts">${ts}</span></div><div class="kl-body ${st?'open':''}" id="kl-${i}">${kh}</div></div>`;
+    }).join('');
+    renderPag('kl',klOffset,klTotal,KL_LIMIT);
+  }catch(e){wrap.innerHTML='<div class="empty" style="color:var(--red)">'+e.message+'</div>';}
+}
+function toggleKl(i){document.getElementById('kl-'+i).classList.toggle('open');}
+function klPrevPage(){if(klOffset>=KL_LIMIT){klOffset-=KL_LIMIT;loadKeylogger();}}
+function klNextPage(){if(klOffset+KL_LIMIT<klTotal){klOffset+=KL_LIMIT;loadKeylogger();}}
+function resetKlFilter(){['klHost','klFrom','klTo','klSearch'].forEach(id=>document.getElementById(id).value='');klOffset=0;loadKeylogger();}
+
+// ── Agents ────────────────────────────────────────────────────────────────
+function agentsPrevPage(){if(agentsOffset>=AGENTS_LIMIT){agentsOffset-=AGENTS_LIMIT;loadAgents();}}
+function agentsNextPage(){if(agentsOffset+AGENTS_LIMIT<agentsTotal){agentsOffset+=AGENTS_LIMIT;loadAgents();}}
+
+async function loadAgents(){
+  const list=document.getElementById('agentsList');
+  const pag=document.getElementById('agentsPag');
+  const isAdmin=currentUser.role==='admin';
+  try{
+    const [allAgents,cmds]=await Promise.all([fetchJ('/api/agents'),fetchJ('/api/commands/history?limit=200')]);
+    agentsTotal=allAgents.length;
+    const agents=allAgents.slice(agentsOffset,agentsOffset+AGENTS_LIMIT);
+    if(!allAgents.length){list.innerHTML='<div class="empty">'+t('agents.noAgents')+'</div>';if(pag)pag.style.display='none';return;}
+    if(pag){
+      pag.style.display=agentsTotal>AGENTS_LIMIT?'flex':'none';
+      document.getElementById('agentsPage').textContent=(Math.floor(agentsOffset/AGENTS_LIMIT)+1)+' / '+Math.max(1,Math.ceil(agentsTotal/AGENTS_LIMIT));
+      document.getElementById('agentsPrev').disabled=agentsOffset<=0;
+      document.getElementById('agentsNext').disabled=agentsOffset+AGENTS_LIMIT>=agentsTotal;
+    }
+    list.innerHTML='';
+    agents.forEach((a,i)=>{
+      const onl=a.online,lastSeen=localTime(a.lastSeen);
+      const hostCmds=cmds.filter(c=>c.host===a.host||c.host==='*').slice(0,5);
+      const card=document.createElement('div');card.className='agent-card'+(onl?' online':'');
+      const dot=document.createElement('span');dot.className='agent-dot '+(onl?'online':'offline');
+      const nameDiv=document.createElement('div');
+      const hostDiv=document.createElement('div');hostDiv.className='agent-host';hostDiv.textContent=a.host||'';
+      const cntDiv=document.createElement('div');cntDiv.style.cssText='color:var(--text2);font-size:11px;margin-top:2px';
+      cntDiv.textContent=fmt(a.events)+' '+t('agents.events');
+      if(a.agentId||a.AgentId){
+        const idDiv=document.createElement('div');idDiv.style.cssText='color:var(--text3);font-size:10px;margin-top:1px;font-family:monospace';
+        idDiv.textContent='id: '+(a.agentId||a.AgentId);
+        nameDiv.appendChild(idDiv);
+      }
+      nameDiv.appendChild(hostDiv);nameDiv.appendChild(cntDiv);
+      const metaDiv=document.createElement('div');metaDiv.style.cssText='color:var(--text2);font-size:12px;margin-left:auto;text-align:right';
+      const stDiv=document.createElement('div');
+      stDiv.innerHTML=onl?'<span style="color:var(--green)">\u25cf '+t('agents.online')+'</span>':'<span style="color:var(--text3)">\u25cf '+t('agents.offline')+'</span>';
+      const lsDiv=document.createElement('div');lsDiv.style.marginTop='2px';lsDiv.textContent=t('agents.lastSeen')+' '+lastSeen;
+      metaDiv.appendChild(stDiv);metaDiv.appendChild(lsDiv);
+      const actDiv=document.createElement('div');actDiv.className='agent-actions';
+      function mkBtn(cls,label,fn){const b=document.createElement('button');b.className='btn '+cls+' btn-sm';b.textContent=label;b.onclick=fn;return b;}
+      if(isAdmin){
+        if(onl){
+          actDiv.appendChild(mkBtn('btn-yellow',t('btn.restart'),()=>confirmCmd(a.host,'restart',t('confirm.restartAgent'),t('confirm.restartAgentDesc'))));
+          actDiv.appendChild(mkBtn('btn-ghost',t('btn.stop'),()=>confirmCmd(a.host,'stop',t('confirm.stopAgent'),t('confirm.stopAgentDesc'))));
+          actDiv.appendChild(mkBtn('btn-red',t('btn.uninstall'),()=>confirmCmd(a.host,'uninstall',t('confirm.uninstallAgent'),t('confirm.uninstallAgentDesc'))));
+        }else{
+          actDiv.appendChild(mkBtn('btn-green',t('btn.start'),()=>confirmCmd(a.host,'start',t('confirm.startAgent'),t('confirm.startAgentDesc'))));
+          actDiv.appendChild(mkBtn('btn-ghost',t('btn.restart'),()=>confirmCmd(a.host,'restart',t('confirm.restartAgent'),'')));
+          actDiv.appendChild(mkBtn('btn-red',t('btn.uninstall'),()=>confirmCmd(a.host,'uninstall',t('confirm.uninstallAgent'),t('confirm.uninstallAgentDesc'))));
+          actDiv.appendChild(mkBtn('btn-ghost','\ud83d\uddd1 '+t('btn.fromList'),()=>removeAgentFromList(a.host)));
+        }
+        actDiv.appendChild(mkBtn('btn-ghost','\ud83d\udcf7 '+t('btn.screenshots'),()=>confirmDataDelete('host-screenshots',t('data.deleteSs')+' '+a.host,t('data.deleteSsDesc'),a.host)));
+        actDiv.appendChild(mkBtn('btn-ghost','\ud83d\udccb '+t('btn.events'),()=>confirmDataDelete('host-events',t('data.deleteEv')+' '+a.host,t('data.deleteEvDesc'),a.host)));
+      }
+      const histBtn=mkBtn('btn-ghost',t('agents.history')+' \u25be',()=>document.getElementById('ab-'+i).classList.toggle('open'));
+      actDiv.appendChild(histBtn);
+      const header=document.createElement('div');header.className='agent-header';
+      header.appendChild(dot);header.appendChild(nameDiv);header.appendChild(metaDiv);header.appendChild(actDiv);
+      const body=document.createElement('div');body.className='agent-body';body.id='ab-'+i;
+      const cmdTitle=document.createElement('div');cmdTitle.style.cssText='font-size:11px;color:var(--text2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px';
+      cmdTitle.textContent=t('agents.lastCommands');
+      body.appendChild(cmdTitle);
+      if(hostCmds.length){
+        hostCmds.forEach(c=>{
+          const st=statusBadge(c.status);
+          const row=document.createElement('div');row.className='cmd-row';
+          row.innerHTML='<span class="cmd-name">'+h(c.command)+'</span><span class="cmd-ts">'+localTime(c.createdAt)+'</span><span class="cmd-status '+st.cls+'">'+st.label+'</span>'+(c.error?'<span class="cmd-err">'+h(c.error)+'</span>':'');
+          body.appendChild(row);
+        });
+      }else{const nd=document.createElement('div');nd.style.cssText='color:var(--text3);font-size:12px';nd.textContent=t('agents.noCommands');body.appendChild(nd);}
+      card.appendChild(header);card.appendChild(body);list.appendChild(card);
+    });
+  }catch(e){list.innerHTML='<div class="empty" style="color:var(--red)">'+e.message+'</div>';}
+}
+
+function confirmCmd(host,cmd,title,desc){
+  pendingCmd={host,cmd};
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmDesc').textContent=desc;
+  document.getElementById('confirmOkBtn').onclick=doConfirmedCmd;
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+function closeConfirm(){document.getElementById('confirmOverlay').classList.remove('open');pendingCmd={host:'',cmd:''};pendingDataDelete={type:'',host:''};document.getElementById('confirmOkBtn').onclick=doConfirmedCmd;}
+async function doConfirmedCmd(){
+  const {host,cmd}=pendingCmd;closeConfirm();
+  try{const r=await authFetch('/api/commands',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host,command:cmd,payload:''})});
+    if(!r.ok)throw new Error(await r.text());const d=await r.json();showToast(t('toast.commandSent',{cmd,id:d.id}),'success');setTimeout(loadAgents,1000);}
+  catch(e){showToast(e.message,'error');}
+}
+async function removeAgentFromList(host){
+  if(!confirm(t('toast.agentRemoved',{host})))return;
+  try{const r=await authFetch('/api/agents/'+encodeURIComponent(host),{method:'DELETE'});if(!r.ok)throw new Error(await r.text());showToast(t('toast.agentRemoved',{host}),'success');loadAgents();}
+  catch(e){showToast(e.message,'error');}
+}
+function confirmDataDelete(type,title,desc,host){
+  host=host||'';pendingDataDelete={type,host};
+  document.getElementById('confirmTitle').textContent=title;
+  document.getElementById('confirmDesc').textContent=desc;
+  document.getElementById('confirmOkBtn').onclick=doDataDelete;
+  document.getElementById('confirmOverlay').classList.add('open');
+}
+async function doDataDelete(){
+  const {type,host}=pendingDataDelete;closeConfirm();
+  const urls={'all-screenshots':'/api/data/all/screenshots','all-events':'/api/data/all/events',
+    'host-screenshots':'/api/data/'+encodeURIComponent(host)+'/screenshots',
+    'host-events':'/api/data/'+encodeURIComponent(host)+'/events'};
+  const labels={'all-screenshots':t('data.allScreenshots'),'all-events':t('data.allEvents'),
+    'host-screenshots':t('btn.screenshots')+' '+host,'host-events':t('btn.events')+' '+host};
+  if(!urls[type])return;
+  try{const r=await authFetch(urls[type],{method:'DELETE'});if(!r.ok)throw new Error(await r.text());
+    const d=await r.json(),count=d.deleted||d.deletedEvents||d.deletedScreenshots||0;
+    showToast(t('toast.dataDeleted',{label:labels[type],count}),'success');
+    if(type.includes('screenshot')&&document.getElementById('tab-screenshots').classList.contains('active'))loadScreenshots();
+    loadStats();
+    if(type.includes('event')&&document.getElementById('tab-events').classList.contains('active'))loadEvents();
+  }catch(e){showToast(e.message,'error');}
+}
+
+// ── Management (Users + Telegram) ─────────────────────────────────────────
+async function loadUsers(){
+  const tbody=document.getElementById('usersBody');
+  try{const users=await fetchJ('/api/users');
+    tbody.innerHTML=users.map(u=>`<tr>
+      <td><b>${h(u.username)}</b></td>
+      <td><span class="${u.role==='admin'?'role-admin':'role-viewer'}">${u.role}</span></td>
+      <td>${u.mustChangePassword?'<span style="color:var(--yellow);font-size:11px">'+t('mgmt.pwChange')+'</span>':'<span style="color:var(--green);font-size:11px">'+t('mgmt.pwOk')+'</span>'}</td>
+      <td>${localTime(u.createdAt)}</td>
+      <td>${u.lastLoginAt?localTime(u.lastLoginAt):t('mgmt.never')}</td>
+      <td>${u.username!=='admin'&&u.username!==currentUser.username?`<button class="btn btn-red btn-sm" onclick="deleteUser('${h(u.username).replace(/'/g,"&#39;")}')">${t('mgmt.delete')}</button>`:''}</td>
+    </tr>`).join('');}
+  catch(e){tbody.innerHTML='<tr><td colspan="6" class="empty" style="color:var(--red)">'+e.message+'</td></tr>';}
+}
+async function createUser(){
+  const u=document.getElementById('newUsername').value.trim(),p=document.getElementById('newPassword').value,r=document.getElementById('newRole').value;
+  if(!u||!p){showToast(t('err.fillFields'),'error');return;}
+  const pe=validatePassword(p);if(pe){showToast(pe,'error');return;}
+  try{const resp=await authFetch('/api/users',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({username:u,password:p,role:r})});
+    const d=await resp.json();if(!resp.ok){showToast(d.error||'Error','error');return;}
+    document.getElementById('newUsername').value='';document.getElementById('newPassword').value='';
+    showToast(t('toast.userCreated',{u}),'success');loadUsers();}
+  catch(e){showToast(e.message,'error');}
+}
+async function deleteUser(username){
+  if(!confirm(t('mgmt.delete')+' "'+username+'"?'))return;
+  try{const r=await authFetch('/api/users/'+encodeURIComponent(username),{method:'DELETE'});const d=await r.json();if(!r.ok){showToast(d.error||'Error','error');return;}showToast(t('toast.userDeleted',{u:username}),'success');loadUsers();}
+  catch(e){showToast(e.message,'error');}
+}
+async function changePassword(){
+  const old=document.getElementById('oldPassword').value,np=document.getElementById('newPw').value,np2=document.getElementById('newPw2').value;
+  if(np!==np2){showToast(t('err.passwordMismatch'),'error');return;}
+  const pe=validatePassword(np);if(pe){showToast(pe,'error');return;}
+  try{const r=await authFetch('/api/auth/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({oldPassword:old,newPassword:np})});
+    const d=await r.json();if(!r.ok){showToast(d.error||'Error','error');return;}
+    ['oldPassword','newPw','newPw2'].forEach(id=>document.getElementById(id).value='');
+    showToast(t('toast.passwordChanged'),'success');}
+  catch(e){showToast(e.message,'error');}
+}
+async function checkTelegramStatus(){
+  const el=document.getElementById('tgStatus'),modsEl=document.getElementById('tgModules');
+  try{
+    const r=await authFetch('/api/telegram/test');
+    if(r.ok){el.textContent=t('mgmt.tgConfigured');el.className='tg-status enabled';}
+    else{const d=await r.json();el.textContent=d.error||t('mgmt.tgNotConfigured');el.className='tg-status disabled';}
+  }catch{}
+  try{
+    const r2=await authFetch('/api/telegram/config');
+    if(r2.ok){const cfg=await r2.json();
+      if(modsEl){
+        if(cfg.sendAllAlerts)modsEl.textContent=t('mgmt.tgAllAlerts');
+        else if(cfg.alertModules&&cfg.alertModules.length)modsEl.textContent=cfg.alertModules.join(', ');
+        else modsEl.textContent=t('mgmt.tgNotSet');
+      }
+    }
+  }catch{}
+}
+async function testTelegram(){
+  try{const r=await authFetch('/api/telegram/test');const d=await r.json();
+    if(r.ok)showToast(t('toast.tgTestSent'),'success');else showToast(d.error,'error');}
+  catch(e){showToast(e.message,'error');}
+}
+
+// ── Auto-refresh ──────────────────────────────────────────────────────────
+
+// ── Audit Log ─────────────────────────────────────────────────────────────
+let auditOffset=0,auditTotal=0;
+const AUDIT_LIMIT=100;
+
+function auditBadge(action){
+  if(!action)return'';
+  const a=action.toUpperCase();
+  let style='background:#1a1a1a;color:#7b8499;border:1px solid #3a3a3a';
+  if(a.includes('LOGIN')&&!a.includes('LOGOUT'))style='background:#0f3020;color:#3ecf8e;border:1px solid #1a6040';
+  else if(a.includes('LOGOUT'))style='background:#1a1a1a;color:#4a5068;border:1px solid #3a3a3a';
+  else if(a.includes('PASSWORD'))style='background:#1e1535;color:#bd93f9;border:1px solid #4a2a9a';
+  else if(a.includes('CREATE'))style='background:#102030;color:#4a9eff;border:1px solid #1a4060';
+  else if(a.includes('DELETE')||a.includes('UNINSTALL'))style='background:#3a1515;color:#ff6b6b;border:1px solid #7a2020';
+  else if(a.includes('COMMAND')||a.includes('STOP'))style='background:#2a2010;color:#ffb86c;border:1px solid #6a4010';
+  return '<span class="badge" style="'+style+'">'+h(action)+'</span>';
+}
+async function loadAuditLog(){
+  const search=val('auditSearch');
+  const body=document.getElementById('auditBody');
+  body.innerHTML='<tr><td colspan="6" class="loading"><span class="loader"></span>'+t('events.loading')+'</td></tr>';
+  try{
+    const p=new URLSearchParams({limit:AUDIT_LIMIT,offset:auditOffset});
+    if(search)p.set('search',search);
+    const data=await fetchJ('/api/audit?'+p);
+    const entries=data.entries||data;
+    const total=data.total||entries.length;
+    auditTotal=total;
+    document.getElementById('auditCount').textContent=t('filter.found')+' '+total;
+    if(!entries.length){body.innerHTML='<tr><td colspan="6" class="empty">'+t('audit.noData')+'</td></tr>';return;}
+    body.innerHTML=entries.map(e=>`<tr>
+      <td class="ts-cell">${localTime(e.ts)}</td>
+      <td style="color:var(--cyan);font-weight:500">${h(e.admin||e.username||'')}</td>
+      <td style="color:var(--text3);font-size:12px;font-family:monospace">${h(e.ip||'')}</td>
+      <td>${auditBadge(e.action)}</td>
+      <td style="color:var(--text2);font-size:12px">${h(e.target||'')}</td>
+      <td class="data-cell" title="${h(e.detail||'')}">${h(e.detail||'')}</td>
+    </tr>`).join('');
+    const pg=Math.floor(auditOffset/AUDIT_LIMIT)+1,pgs=Math.max(1,Math.ceil(total/AUDIT_LIMIT));
+    document.getElementById('auditPage').textContent=pg+' / '+pgs;
+    document.getElementById('auditPrev').disabled=auditOffset<=0;
+    document.getElementById('auditNext').disabled=auditOffset+AUDIT_LIMIT>=total;
+  }catch(e){body.innerHTML='<tr><td colspan="6" class="empty" style="color:var(--red)">'+e.message+'</td></tr>';}
+}
+
+function auditPrevPage(){if(auditOffset>=AUDIT_LIMIT){auditOffset-=AUDIT_LIMIT;loadAuditLog();}}
+function auditNextPage(){if(auditOffset+AUDIT_LIMIT<auditTotal){auditOffset+=AUDIT_LIMIT;loadAuditLog();}}
+
+document.getElementById('autoRefresh').addEventListener('change',e=>{clearInterval(timer);if(e.target.checked)startTimer();});
+function startTimer(){
+  timer=setInterval(()=>{
+    loadStats();loadHosts();
+    if(document.getElementById('tab-events').classList.contains('active'))loadEvents();
+    if(document.getElementById('tab-screenshots').classList.contains('active'))loadScreenshots();
+    if(document.getElementById('tab-agents').classList.contains('active'))loadAgents();
+  },30000);
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded',()=>{
+  applyTranslations();
+
+  // Enter in login
+  document.getElementById('loginPassword').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  document.getElementById('loginUsername').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginPassword').focus();});
+  document.getElementById('forcePwNew2').addEventListener('keydown',e=>{if(e.key==='Enter')doForcePwChange();});
+
+  // Enter and change in all filter inputs
+  const applyMap={
+    fSearch:()=>{evOffset=0;loadEvents();},
+    fFrom:()=>{evOffset=0;loadEvents();},fTo:()=>{evOffset=0;loadEvents();},
+    ssSearch:()=>{ssOffset=0;loadScreenshots();},
+    ssFrom:()=>{ssOffset=0;loadScreenshots();},ssTo:()=>{ssOffset=0;loadScreenshots();},
+    klSearch:()=>{klOffset=0;loadKeylogger();},
+    klFrom:()=>{klOffset=0;loadKeylogger();},klTo:()=>{klOffset=0;loadKeylogger();}
+  };
+  Object.entries(applyMap).forEach(([id,fn])=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.addEventListener('keydown',e=>{if(e.key==='Enter')fn();});
+    el.addEventListener('change',fn); // date pickers apply on change
+  });
+
+  // Auto-apply dropdowns
+  document.getElementById('fModule').addEventListener('change',()=>{evOffset=0;loadEvents();});
+  document.getElementById('fHost').addEventListener('change',()=>{evOffset=0;loadEvents();});
+  document.getElementById('ssHost').addEventListener('change',()=>{ssOffset=0;loadScreenshots();});
+  document.getElementById('klHost').addEventListener('change',()=>{klOffset=0;loadKeylogger();});
+
+  // Pagination buttons translation
+  ['evPrev','evNext','ssPrev','ssNext','klPrev','klNext','agentsPrev','agentsNext'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    if(id.includes('Prev'))el.setAttribute('data-i18n','pag.prev');
+    else el.setAttribute('data-i18n','pag.next');
+  });
+
+  tryRestoreSession();
+});
+
+</script>
+</body>
+</html>
