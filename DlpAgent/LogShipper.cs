@@ -20,6 +20,7 @@ namespace ZavetSec.DlpAgent
 
         private static Thread   _thread;
         private static volatile bool _running = false;
+        public  static bool IsRunning => _running;
         private static string   _serverUrl;
         private static string   _apiKey;
         private static int      _batchSize;

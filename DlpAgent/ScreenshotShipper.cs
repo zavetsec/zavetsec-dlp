@@ -21,6 +21,7 @@ namespace ZavetSec.DlpAgent
 
         private static Thread   _thread;
         private static volatile bool _running = false;
+        public  static bool IsRunning => _running;
 
         // Ленивая инициализация: HttpClient создаётся при первом использовании,
         // когда Config.Current уже точно инициализирован.
