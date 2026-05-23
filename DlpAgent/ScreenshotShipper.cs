@@ -32,9 +32,25 @@ namespace ZavetSec.DlpAgent
                 if (_httpLazy == null) {
                     lock (_httpLock) {
                         if (_httpLazy == null) {
-                            var h = new System.Net.Http.HttpClientHandler();
-                            if (Config.Current.Shipper.AllowInvalidCertificate)
-                                h.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+                          
+                    // Certificate fingerprint pinning
+                    string fp = (Config.Current.Shipper.ServerFingerprint ?? "")
+                        .Trim().Replace(":", "").Replace(" ", "").ToUpperInvariant();
+                    var h = new System.Net.Http.HttpClientHandler();
+                    if (!string.IsNullOrEmpty(fp))
+                    {
+                        h.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) =>
+                        {
+                            if (cert == null) return false;
+                            byte[] rawHash = System.Security.Cryptography.SHA256.HashData(cert.RawData);
+                            string certFp  = BitConverter.ToString(rawHash).Replace("-", "").ToUpperInvariant();
+                            return certFp == fp;
+                        };
+                    }
+                    else if (Config.Current.Shipper.AllowInvalidCertificate)
+                    {
+                        h.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+                    }
                             _httpLazy = new HttpClient(h) { Timeout = TimeSpan.FromSeconds(30) };
                         }
                     }
@@ -56,6 +72,15 @@ namespace ZavetSec.DlpAgent
             _http.DefaultRequestHeaders.Add("X-Api-Key", cfg.ApiKey);
             _http.DefaultRequestHeaders.Remove("X-Agent-Id");
             _http.DefaultRequestHeaders.Add("X-Agent-Id", cfg.AgentId);
+            _http.DefaultRequestHeaders.Remove("X-Agent-Key");
+            if (!string.IsNullOrEmpty(cfg.AgentKey))
+                _http.DefaultRequestHeaders.Add("X-Agent-Key", cfg.AgentKey);
+            // Fallback to global ApiKey if no per-agent key yet
+            if (string.IsNullOrEmpty(cfg.AgentKey))
+            {
+                _http.DefaultRequestHeaders.Remove("X-Api-Key");
+                _http.DefaultRequestHeaders.Add("X-Api-Key", cfg.ApiKey);
+            }
             _http.DefaultRequestHeaders.Add("User-Agent", "ZavetSec-DlpAgent/2.2");
 
             _running = true;

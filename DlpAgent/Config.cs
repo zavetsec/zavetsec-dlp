@@ -112,6 +112,15 @@ namespace ZavetSec.DlpAgent
         // Unique ID for this agent installation — auto-generated on first run.
         // Allows identifying agents even when hostnames are duplicated.
         public string AgentId                            { get; set; } = "";
+        // Per-agent API key — returned by server on first enrollment.
+        // Auto-saved to config.json. If empty, falls back to global ApiKey.
+        public string AgentKey                           { get; set; } = "";
+        // Optional SHA-256 fingerprint of the server certificate (hex, no colons).
+        // When set, the agent only connects if the server cert matches this fingerprint.
+        // Get fingerprint: openssl x509 -in server.crt -fingerprint -sha256 -noout
+        // Or from the server log on first start: [HTTPS] Certificate SHA-256: xxxx
+        // Leave empty to skip pinning (uses allowInvalidCertificate instead).
+        public string ServerFingerprint                  { get; set; } = "";
     }
 
     internal class AgentConfig
@@ -368,6 +377,8 @@ namespace ZavetSec.DlpAgent
                 cfg.Shipper.DeleteLocalScreenshotsAfterUpload = GetBool(sh,   "deleteLocalScreenshotsAfterUpload",  cfg.Shipper.DeleteLocalScreenshotsAfterUpload);
                 cfg.Shipper.AllowInvalidCertificate           = GetBool(sh,   "allowInvalidCertificate",            cfg.Shipper.AllowInvalidCertificate);
                 cfg.Shipper.AgentId                            = GetString(sh, "agentId",                             cfg.Shipper.AgentId);
+                cfg.Shipper.ServerFingerprint                  = GetString(sh, "serverFingerprint",                   cfg.Shipper.ServerFingerprint);
+                cfg.Shipper.AgentKey                           = GetString(sh, "agentKey",                            cfg.Shipper.AgentKey);
             }
         }
 

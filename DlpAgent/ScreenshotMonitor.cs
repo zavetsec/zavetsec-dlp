@@ -111,8 +111,6 @@ namespace ZavetSec.DlpAgent
                     }
 
                     var cfg    = Config.Current.Screenshot;
-                    Rectangle bounds = GetVirtualScreen();
-
                     // Open interactive window station and desktop.
                     // Necessary when running as SYSTEM (Session 0 isolation).
                     // Without this, Graphics.CopyFromScreen throws "Invalid Handle".
@@ -133,62 +131,62 @@ namespace ZavetSec.DlpAgent
                     }
                     catch { /* best effort — capture may still work without */ }
 
-                    using (var bmp = new Bitmap(bounds.Width, bounds.Height,
-                        System.Drawing.Imaging.PixelFormat.Format32bppArgb))
-                    using (var g = Graphics.FromImage(bmp))
+                    // Per-monitor capture
+                    string ssDir2   = Config.Current.Storage.ScreenshotDir;
+                    string dateDir2 = Path.Combine(ssDir2, DateTime.UtcNow.ToString("yyyyMMdd"));
+                    Directory.CreateDirectory(dateDir2);
+                    string win2     = windowHint ?? NativeHelpers.GetActiveWindowTitle();
+                    bool encrypt2   = Config.Current.ScreenshotEncrypt.Enabled;
+                    var screens     = Screen.AllScreens;
+                    string tsStamp  = DateTime.UtcNow.ToString("HHmmss_fff");
+
+                    for (int si = 0; si < screens.Length; si++)
                     {
-                        g.CopyFromScreen(new Point(bounds.Left, bounds.Top),
-                            Point.Empty, new Size(bounds.Width, bounds.Height));
+                        var  sc      = screens[si];
+                        var  sb      = sc.Bounds;
+                        string mSuffix = screens.Length > 1 ? $"_m{si + 1}" : "";
+                        string fname   = $"{tsStamp}_{trigger}{mSuffix}.jpg";
+                        string fpath   = Path.Combine(dateDir2, fname);
+                        string res     = $"{sb.Width}x{sb.Height}";
 
-                        if (cfg.BlankScreenDetection && IsBlankScreen(bmp))
+                        using (var mbmp = new Bitmap(sb.Width, sb.Height,
+                            System.Drawing.Imaging.PixelFormat.Format32bppArgb))
+                        using (var mg = Graphics.FromImage(mbmp))
                         {
-                            Logger.Write("SCREENSHOT_WARN", "Blank frame detected (Session 0?)",
-                                $"trigger={trigger}");
-                            return;
+                            mg.CopyFromScreen(new Point(sb.Left, sb.Top),
+                                Point.Empty, new Size(sb.Width, sb.Height));
+
+                            if (cfg.BlankScreenDetection && IsBlankScreen(mbmp))
+                            {
+                                Logger.WriteLocal("SCREENSHOT_SKIP",
+                                    $"Blank frame on monitor {si + 1} — skipping");
+                                continue;
+                            }
+
+                            if (encrypt2)
+                            {
+                                fname = fname.Replace(".jpg", ".enc");
+                                fpath = Path.Combine(dateDir2, fname);
+                            }
+
+                            // Recreate directory immediately before writing —
+                            // ScreenshotShipper may delete empty date dirs after upload
+                            Directory.CreateDirectory(dateDir2);
+
+                            if (encrypt2)
+                                EncryptToFile(JpegToBytes(mbmp, cfg.JpegQuality), fpath);
+                            else
+                                SaveJpeg(mbmp, fpath, cfg.JpegQuality);
                         }
 
-                        string ssDir  = Config.Current.Storage.ScreenshotDir;
-                        string dateDir = Path.Combine(ssDir, DateTime.UtcNow.ToString("yyyyMMdd"));
-                        Directory.CreateDirectory(dateDir);
+                        string monLabel = screens.Length > 1 ? $" [Monitor {si + 1}/{screens.Length}]" : "";
+                        Logger.Write("SCREENSHOT", $"Captured [{trigger}]{monLabel}",
+                            $"file={fname}|encrypted={encrypt2}|window={win2}|" +
+                            $"monitor={si + 1}|monitors={screens.Length}|res={res}");
 
-                        string fname = $"{DateTime.UtcNow:HHmmss_fff}_{trigger}.jpg";
-                        string fpath = Path.Combine(dateDir, fname);
-
-                        bool encrypt = Config.Current.ScreenshotEncrypt.Enabled;
-
-                        // Recreate directory just before writing —
-                        // ScreenshotShipper may have deleted it after previous upload
-                        Directory.CreateDirectory(dateDir);
-
-                        if (encrypt)
-                        {
-                            // Сохранить во временный буфер, зашифровать, записать как .enc
-                            fname  = fname.Replace(".jpg", ".enc");
-                            fpath  = Path.Combine(dateDir, fname);
-                            byte[] jpegBytes = JpegToBytes(bmp, cfg.JpegQuality);
-                            EncryptToFile(jpegBytes, fpath);
-                        }
-                        else
-                        {
-                            SaveJpeg(bmp, fpath, cfg.JpegQuality);
-                        }
-
-                        string win = windowHint ?? NativeHelpers.GetActiveWindowTitle();
-                        Logger.Write("SCREENSHOT", $"Captured [{trigger}]",
-                            $"file={fname}|encrypted={encrypt}|window={win}|" +
-                            $"monitors={Screen.AllScreens.Length}|" +
-                            $"res={bounds.Width}x{bounds.Height}");
-
-                        // Enqueue for upload to server
                         if (Config.Current.Shipper.Enabled)
-                        {
-                            ScreenshotShipper.Enqueue(
-                                filePath:   fpath,
-                                trigger:    trigger,
-                                window:     win,
-                                resolution: $"{bounds.Width}x{bounds.Height}"
-                            );
-                        }
+                            ScreenshotShipper.Enqueue(fpath, trigger,
+                                win2 + monLabel, res);
                     }
                 }
                 catch (Exception ex)

@@ -35,9 +35,25 @@ namespace ZavetSec.DlpAgent
                 if (_httpLazy == null) {
                     lock (_httpLock) {
                         if (_httpLazy == null) {
-                            var handler = new System.Net.Http.HttpClientHandler();
-                            if (Config.Current.Shipper.AllowInvalidCertificate)
-                                handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+        
+                    // Certificate fingerprint pinning
+                    string fp = (Config.Current.Shipper.ServerFingerprint ?? "")
+                        .Trim().Replace(":", "").Replace(" ", "").ToUpperInvariant();
+                    var handler = new System.Net.Http.HttpClientHandler();
+                    if (!string.IsNullOrEmpty(fp))
+                    {
+                        handler.ServerCertificateCustomValidationCallback = (msg, cert, chain, errors) =>
+                        {
+                            if (cert == null) return false;
+                            byte[] rawHash = System.Security.Cryptography.SHA256.HashData(cert.RawData);
+                            string certFp  = BitConverter.ToString(rawHash).Replace("-", "").ToUpperInvariant();
+                            return certFp == fp;
+                        };
+                    }
+                    else if (Config.Current.Shipper.AllowInvalidCertificate)
+                    {
+                        handler.ServerCertificateCustomValidationCallback = (_, _, _, _) => true;
+                    }
                             _httpLazy = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(15) };
                         }
                     }
@@ -70,6 +86,15 @@ namespace ZavetSec.DlpAgent
             _http.DefaultRequestHeaders.Add("X-Api-Key", cfg.ApiKey);
             _http.DefaultRequestHeaders.Remove("X-Agent-Id");
             _http.DefaultRequestHeaders.Add("X-Agent-Id", cfg.AgentId);
+            _http.DefaultRequestHeaders.Remove("X-Agent-Key");
+            if (!string.IsNullOrEmpty(cfg.AgentKey))
+                _http.DefaultRequestHeaders.Add("X-Agent-Key", cfg.AgentKey);
+            // Fallback to global ApiKey if no per-agent key yet
+            if (string.IsNullOrEmpty(cfg.AgentKey))
+            {
+                _http.DefaultRequestHeaders.Remove("X-Api-Key");
+                _http.DefaultRequestHeaders.Add("X-Api-Key", cfg.ApiKey);
+            }
             _http.DefaultRequestHeaders.Add("User-Agent", "ZavetSec-DlpAgent/2.2");
 
             int pollMs = Math.Max(15000, cfg.FlushSeconds * 1000);
@@ -94,8 +119,21 @@ namespace ZavetSec.DlpAgent
                 string serverUrl = Config.Current.Shipper.ServerUrl.TrimEnd('/');
                 string host      = Uri.EscapeDataString(Environment.MachineName);
                 string monStatus = MonitoringActive ? "active" : "stopped";
-                string json      = _http.GetStringAsync(
+                var resp = _http.GetAsync(
                     $"{serverUrl}/api/commands/{host}?status={monStatus}").Result;
+                string json = resp.Content.ReadAsStringAsync().Result;
+
+                // Server may return a new per-agent key on enrollment — save it
+                if (resp.Headers.TryGetValues("X-Agent-Key", out var keyVals))
+                {
+                    string newKey = System.Linq.Enumerable.FirstOrDefault(keyVals) ?? "";
+                    if (!string.IsNullOrEmpty(newKey) && newKey != Config.Current.Shipper.AgentKey)
+                    {
+                        Config.Current.Shipper.AgentKey = newKey;
+                        SaveAgentKey(newKey);
+                        Logger.WriteLocal("COMMAND_POLLER", "Per-agent key enrolled and saved");
+                    }
+                }
 
                 var commands = JsonSerializer.Deserialize<List<RemoteCommand>>(json,
                     new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -309,6 +347,25 @@ namespace ZavetSec.DlpAgent
                 IsBackground = true
             };
             t.Start();
+        }
+
+        private static void SaveAgentKey(string key)
+        {
+            try
+            {
+                string cfgPath = System.IO.Path.Combine(AppContext.BaseDirectory, "config.json");
+                if (!System.IO.File.Exists(cfgPath)) return;
+                string json = System.IO.File.ReadAllText(cfgPath, System.Text.Encoding.UTF8);
+                if (json.Contains("\"agentKey\""))
+                    json = System.Text.RegularExpressions.Regex.Replace(
+                        json, "\"agentKey\"\\s*:\\s*\"[^\"]*\"",
+                        "\"agentKey\": \"" + key + "\"");
+                else
+                    json = json.TrimEnd().TrimEnd('}').TrimEnd()
+                         + ",\n    \"agentKey\": \"" + key + "\"\n  }";
+                System.IO.File.WriteAllText(cfgPath, json, System.Text.Encoding.UTF8);
+            }
+            catch { }
         }
 
         private static string Esc(string s) =>
