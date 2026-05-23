@@ -106,7 +106,7 @@ public class EventStore
     }
 
     // Версия схемы БД — увеличивать при каждом изменении схемы
-    private const int DbSchemaVersion = 8;
+    private const int DbSchemaVersion = 9;
 
     /// Выполняет все необходимые миграции для существующих баз данных.
     /// Безопасно вызывать на любой версии БД — применяются только нужные.
@@ -215,6 +215,17 @@ public class EventStore
         {
             // v8: add agent_status column to hosts table
             try { Exec(conn, "ALTER TABLE hosts ADD COLUMN agent_status TEXT NOT NULL DEFAULT 'active'"); } catch { }
+        }
+
+        if (currentVersion < 9)
+        {
+            // v9: per-agent API keys
+            Exec(conn, "CREATE TABLE IF NOT EXISTS agent_keys (" +
+                "agent_id TEXT NOT NULL PRIMARY KEY, " +
+                "api_key  TEXT NOT NULL, " +
+                "host     TEXT NOT NULL DEFAULT '', " +
+                "created_at TEXT NOT NULL, " +
+                "revoked  INTEGER NOT NULL DEFAULT 0)");
         }
 
         // Обновить версию схемы
@@ -978,6 +989,77 @@ public class EventStore
         tx.Commit();
     }
 
+
+    // ── Per-agent API keys ────────────────────────────────────────────────
+
+    /// <summary>Enroll agent: generate unique key, store, return it.</summary>
+    public string EnrollAgent(string agentId, string host)
+    {
+        using var conn = Open();
+        // Check if already enrolled and not revoked
+        var check = conn.CreateCommand();
+        check.CommandText = "SELECT api_key FROM agent_keys WHERE agent_id=$aid AND revoked=0";
+        check.Parameters.AddWithValue("$aid", agentId);
+        var existing = check.ExecuteScalar() as string;
+        if (!string.IsNullOrEmpty(existing)) return existing;
+
+        // Generate new key
+        string key = Convert.ToHexString(
+            System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+        var ins = conn.CreateCommand();
+        ins.CommandText = "INSERT INTO agent_keys (agent_id, api_key, host, created_at) " +
+            "VALUES ($aid, $key, $host, $ts) " +
+            "ON CONFLICT(agent_id) DO UPDATE SET api_key=$key, host=$host, " +
+            "created_at=$ts, revoked=0";
+        ins.Parameters.AddWithValue("$aid",  agentId);
+        ins.Parameters.AddWithValue("$key",  key);
+        ins.Parameters.AddWithValue("$host", host);
+        ins.Parameters.AddWithValue("$ts",   DateTime.UtcNow.ToString("o"));
+        ins.ExecuteNonQuery();
+        return key;
+    }
+
+    /// <summary>Validate agent-specific key. Returns true if valid and not revoked.</summary>
+    public bool ValidateAgentKey(string agentId, string agentKey)
+    {
+        if (string.IsNullOrWhiteSpace(agentId) || string.IsNullOrWhiteSpace(agentKey))
+            return false;
+        using var conn = Open();
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM agent_keys " +
+            "WHERE agent_id=$aid AND api_key=$key AND revoked=0";
+        cmd.Parameters.AddWithValue("$aid", agentId);
+        cmd.Parameters.AddWithValue("$key", agentKey);
+        return (long)(cmd.ExecuteScalar() ?? 0L) > 0;
+    }
+
+    /// <summary>Get all enrolled agent keys (for admin dashboard).</summary>
+    public List<AgentKeyInfo> GetAgentKeys()
+    {
+        using var conn = Open();
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT agent_id, host, created_at, revoked FROM agent_keys ORDER BY created_at DESC";
+        var list = new List<AgentKeyInfo>();
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+            list.Add(new AgentKeyInfo {
+                AgentId   = r.GetString(0),
+                Host      = r.GetString(1),
+                CreatedAt = r.GetString(2),
+                Revoked   = r.GetInt64(3) != 0
+            });
+        return list;
+    }
+
+    /// <summary>Revoke agent key (admin action).</summary>
+    public bool RevokeAgentKey(string agentId)
+    {
+        using var conn = Open();
+        var cmd = conn.CreateCommand();
+        cmd.CommandText = "UPDATE agent_keys SET revoked=1 WHERE agent_id=$aid";
+        cmd.Parameters.AddWithValue("$aid", agentId);
+        return cmd.ExecuteNonQuery() > 0;
+    }
     // ── System event helper ──────────────────────────────────────────────
     public void InsertSystemEvent(string host, string module, string msg,
                                   string data = "", string agentId = "")

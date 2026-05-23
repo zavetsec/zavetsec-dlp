@@ -99,6 +99,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
 .agent-header{padding:14px 18px;display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 .agent-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
 .agent-dot.online{background:var(--green);box-shadow:0 0 6px var(--green)}
+.agent-dot.stopped{background:var(--yellow);box-shadow:0 0 6px var(--yellow)}
 .agent-dot.offline{background:var(--text3)}
 .agent-host{font-size:15px;font-weight:600;color:#fff}
 .agent-actions{display:flex;gap:8px;margin-left:16px;flex-wrap:wrap}
@@ -218,6 +219,7 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   <h1>ZavetSec <span>DLP</span></h1>
   <div class="hright">
     <label class="auto-refresh"><input type="checkbox" id="autoRefresh" checked><span data-i18n="header.autoRefresh"></span></label>
+    <button id="liveModeBtn" class="btn btn-sm" style="margin-left:6px;padding:2px 8px;font-size:11px;background:var(--bg3);border:1px solid var(--border)" onclick="toggleLiveMode()" title="Live feed — poll every 5s">&#9679; Live</button>
     <button class="lang-btn" id="langBtn" onclick="toggleLanguage()">EN</button>
     <div class="status-indicator"><span class="dot" id="statusDot"></span><span id="statusText" data-i18n="health.checking"></span></div>
     <div class="user-info"><span class="uname" id="headerUsername">-</span><span class="urole" id="headerRole"></span></div>
@@ -386,6 +388,31 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
         <button class="btn btn-ghost btn-sm" onclick="checkTelegramStatus()" data-i18n="mgmt.tgRefresh"></button>
       </div>
     </div>
+    <div class="tg-section" id="emailSection">
+      <h3>Email Alerts (SMTP)</h3>
+      <div id="emailStatus" class="tg-status disabled">Not configured</div>
+      <p style="color:var(--text2);font-size:13px;margin:6px 0">Send email alerts when suspicious activity is detected.</p>
+      <p style="color:var(--text3);font-size:12px">Setup: fill in SMTP settings below and click Save. Leave SMTP Host empty to disable.</p>
+      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div class="form-field"><label>SMTP Host</label><input id="emailSmtpHost" type="text" placeholder="smtp.gmail.com"></div>
+        <div class="form-field"><label>SMTP Port</label><input id="emailSmtpPort" type="number" placeholder="587" value="587"></div>
+        <div class="form-field"><label>Username</label><input id="emailUsername" type="text" placeholder="your@email.com"></div>
+        <div class="form-field"><label>Password</label><input id="emailPassword" type="password" placeholder="app password"></div>
+        <div class="form-field"><label>From</label><input id="emailFrom" type="text" placeholder="dlp@yourdomain.com"></div>
+        <div class="form-field"><label>To</label><input id="emailTo" type="text" placeholder="security@yourdomain.com"></div>
+      </div>
+      <div class="form-field" style="margin-top:4px">
+        <label style="font-size:11px">Alert Modules <span style="color:var(--text3);font-weight:normal">(comma-separated, empty = all ALERT events)</span></label>
+        <input id="emailModules" type="text" placeholder="USB_ALERT,CLIPBOARD_ALERT,PROCESS_ALERT" style="width:100%">
+      </div>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <button class="btn btn-ghost btn-sm" onclick="loadEmailConfig()">&#8635; Refresh</button>
+        <button class="btn btn-ghost btn-sm" onclick="saveEmailConfig()">&#128190; Save</button>
+        <button class="btn btn-ghost btn-sm" onclick="testEmail()">&#9993; Send Test</button>
+      </div>
+      <p style="color:var(--text3);font-size:11px;margin-top:6px">Changes take effect after server restart.</p>
+    </div>
+
     <div class="form-card">
       <h3 data-i18n="mgmt.changePassword"></h3>
       <div class="form-row">
@@ -497,7 +524,7 @@ en:{
   'modal.delete':'Delete',
   'kl.sessions':'Sessions:','kl.noData':'No keylogger data',
   'agents.noAgents':'No agents','agents.events':'events','agents.lastSeen':'Last seen:',
-  'agents.online':'Online','agents.offline':'Offline','agents.history':'History',
+  'agents.online':'Online','agents.stopped':'Stopped','agents.offline':'Offline','agents.history':'History',
   'agents.noCommands':'No commands','agents.lastCommands':'Last commands','audit.admin':'Admin','audit.action':'Action','audit.target':'Target','audit.detail':'Detail',
   'btn.start':'Start','btn.restart':'Restart','btn.stop':'Stop','btn.uninstall':'Uninstall',
   'btn.fromList':'Remove','btn.screenshots':'Screenshots','btn.events':'Events',
@@ -599,7 +626,7 @@ ru:{
   'kl.sessions':'\u0421\u0435\u0441\u0441\u0438\u0439:','kl.noData':'\u041d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445 \u043a\u0435\u0439\u043b\u043e\u0433\u0433\u0435\u0440\u0430',
   'agents.noAgents':'\u041d\u0435\u0442 \u0430\u0433\u0435\u043d\u0442\u043e\u0432',
   'agents.events':'\u0441\u043e\u0431\u044b\u0442\u0438\u0439','agents.lastSeen':'\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0439 \u0440\u0430\u0437:',
-  'agents.online':'Online','agents.offline':'Offline',
+  'agents.online':'Online','agents.stopped':'Stopped','agents.offline':'Offline',
   'agents.history':'\u0418\u0441\u0442\u043e\u0440\u0438\u044f','agents.noCommands':'\u041a\u043e\u043c\u0430\u043d\u0434 \u043d\u0435 \u0431\u044b\u043b\u043e',
   'agents.lastCommands':'\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0435 \u043a\u043e\u043c\u0430\u043d\u0434\u044b','audit.admin':'\u0410\u0434\u043c\u0438\u043d','audit.action':'\u0414\u0435\u0439\u0441\u0442\u0432\u0438\u0435','audit.target':'\u0426\u0435\u043b\u044c','audit.detail':'\u0414\u0435\u0442\u0430\u043b\u044c',
   'btn.start':'Start','btn.restart':'Restart','btn.stop':'Stop','btn.uninstall':'Uninstall',
@@ -760,6 +787,34 @@ function applyTranslations(){
   document.title = 'ZavetSec DLP';
 }
 
+function toggleLiveMode(){
+  liveMode = !liveMode;
+  const btn = document.getElementById('liveModeBtn');
+  if (liveMode){
+    btn.style.background = 'var(--green)';
+    btn.style.color = '#000';
+    btn.textContent = '⬤ Live';
+    startAutoRefresh(LIVE_REFRESH_MS);
+  } else {
+    btn.style.background = 'var(--bg3)';
+    btn.style.color = 'var(--text)';
+    btn.textContent = '○ Live';
+    startAutoRefresh(AUTO_REFRESH_MS);
+  }
+}
+
+function startAutoRefresh(ms){
+  if(window._refreshTimer) clearInterval(window._refreshTimer);
+  window._refreshTimer = setInterval(()=>{
+    if(!document.getElementById('autoRefresh').checked) return;
+    const tab = document.querySelector('.tab.active')?.dataset?.tab;
+    if(tab==='events')      loadEvents();
+    else if(tab==='screenshots') loadScreenshots();
+    else if(tab==='keylogger')   loadKeylogger();
+    else if(tab==='agents')      loadAgents();
+  }, ms);
+}
+
 function toggleLanguage(){
   currentLang = currentLang === 'en' ? 'ru' : 'en';
   localStorage.setItem('dlp_lang', currentLang);
@@ -917,7 +972,7 @@ function switchTab(name,el){
   if(name==='screenshots'){ssOffset=0;exitSelectMode();loadScreenshots();}
   else if(name==='keylogger'){klOffset=0;loadKeylogger();}
   else if(name==='agents'){agentsOffset=0;loadAgents();}
-  else if(name==='management'){loadUsers();checkTelegramStatus();}
+  else if(name==='management'){loadUsers();checkTelegramStatus();loadEmailConfig();loadAgentKeys();}
   else if(name==='audit'){auditOffset=0;loadAuditLog();}
 }
 
@@ -979,6 +1034,7 @@ async function loadHosts(){
 // ── Events ────────────────────────────────────────────────────────────────
 async function loadEvents(){
   const p=new URLSearchParams({limit:EV_LIMIT,offset:evOffset,module:val('fModule'),host:val('fHost'),from:val('fFrom'),to:val('fTo'),search:val('fSearch')});
+  if(window._filterAgentId){p.set('agentId',window._filterAgentId);}
   const body=document.getElementById('evBody');
   body.innerHTML='<tr><td colspan="6" class="loading"><span class="loader"></span>'+t('events.loading')+'</td></tr>';
   try{
@@ -998,7 +1054,7 @@ async function loadEvents(){
   }catch(e){body.innerHTML=`<tr><td colspan="6" class="empty" style="color:var(--red)">${e.message}</td></tr>`;}
 }
 function applyFilter(){evOffset=0;loadEvents();}
-function resetFilter(){['fModule','fHost'].forEach(id=>document.getElementById(id).value='');['fFrom','fTo','fSearch'].forEach(id=>document.getElementById(id).value='');evOffset=0;loadEvents();}
+function resetFilter(){['fModule','fHost'].forEach(id=>document.getElementById(id).value='');['fFrom','fTo','fSearch'].forEach(id=>document.getElementById(id).value='');evOffset=0;window._filterAgentId='';loadEvents();}
 function evPrevPage(){if(evOffset>=EV_LIMIT){evOffset-=EV_LIMIT;loadEvents();}}
 function evNextPage(){if(evOffset+EV_LIMIT<evTotal){evOffset+=EV_LIMIT;loadEvents();}}
 
@@ -1025,6 +1081,7 @@ async function exportCsv(){
 // ── Screenshots ───────────────────────────────────────────────────────────
 async function loadScreenshots(){
   const p=new URLSearchParams({limit:SS_LIMIT,offset:ssOffset,host:val('ssHost'),from:val('ssFrom'),to:val('ssTo'),search:val('ssSearch')});
+  if(window._filterAgentIdSS){p.set('agentId',window._filterAgentIdSS);}
   const grid=document.getElementById('ssGrid');
   grid.innerHTML='<div class="loading"><span class="loader"></span>'+t('events.loading')+'</div>';
   selectedSsIds.clear();updateSelectionUI();
@@ -1065,7 +1122,7 @@ function ssCardClick(el,event){
 }
 function ssPrevPage(){if(ssOffset>=SS_LIMIT){ssOffset-=SS_LIMIT;loadScreenshots();}}
 function ssNextPage(){if(ssOffset+SS_LIMIT<ssTotal){ssOffset+=SS_LIMIT;loadScreenshots();}}
-function resetSsFilter(){['ssHost','ssFrom','ssTo','ssSearch'].forEach(id=>document.getElementById(id).value='');ssOffset=0;loadScreenshots();}
+function resetSsFilter(){['ssHost','ssFrom','ssTo','ssSearch'].forEach(id=>document.getElementById(id).value='');ssOffset=0;window._filterAgentIdSS='';loadScreenshots();}
 function toggleSelectMode(){selectModeActive=!selectModeActive;const grid=document.getElementById('ssGrid');if(selectModeActive){grid.classList.add('select-mode');document.getElementById('btnSelectMode').style.display='none';document.getElementById('btnSelectAll').style.display='';document.getElementById('btnCancelSelect').style.display='';}else exitSelectMode();}
 function exitSelectMode(){selectModeActive=false;selectedSsIds.clear();document.getElementById('ssGrid').classList.remove('select-mode');document.querySelectorAll('.ss-check').forEach(c=>c.checked=false);document.querySelectorAll('.ss-card').forEach(c=>c.classList.remove('selected'));document.getElementById('btnSelectMode').style.display=currentUser.role==='admin'?'':'none';document.getElementById('btnSelectAll').style.display='none';document.getElementById('btnCancelSelect').style.display='none';document.getElementById('btnDeleteSelected').style.display='none';document.getElementById('selCount').textContent='0';}
 function selectAll(){document.querySelectorAll('.ss-card').forEach(card=>{const id=parseInt(card.dataset.ssid);selectedSsIds.add(id);card.classList.add('selected');const chk=document.getElementById('chk-'+id);if(chk)chk.checked=true;});updateSelectionUI();}
@@ -1147,7 +1204,9 @@ async function loadAgents(){
       const onl=a.online,lastSeen=localTime(a.lastSeen);
       const hostCmds=cmds.filter(c=>c.host===a.host||c.host==='*').slice(0,5);
       const card=document.createElement('div');card.className='agent-card'+(onl?' online':'');
-      const dot=document.createElement('span');dot.className='agent-dot '+(onl?'online':'offline');
+      const stopped = onl && (a.monitorStatus||a.MonitorStatus)==='stopped';
+      const dotClass = onl ? (stopped ? 'stopped' : 'online') : 'offline';
+      const dot=document.createElement('span');dot.className='agent-dot '+dotClass;
       const nameDiv=document.createElement('div');
       const hostDiv=document.createElement('div');hostDiv.className='agent-host';hostDiv.textContent=a.host||'';
       const cntDiv=document.createElement('div');cntDiv.style.cssText='color:var(--text2);font-size:11px;margin-top:2px';
@@ -1167,14 +1226,14 @@ async function loadAgents(){
       function mkBtn(cls,label,fn){const b=document.createElement('button');b.className='btn '+cls+' btn-sm';b.textContent=label;b.onclick=fn;return b;}
       if(isAdmin){
         if(onl){
-          actDiv.appendChild(mkBtn('btn-yellow',t('btn.restart'),()=>confirmCmd(a.host,'restart',t('confirm.restartAgent'),t('confirm.restartAgentDesc'))));
-          actDiv.appendChild(mkBtn('btn-ghost',t('btn.stop'),()=>confirmCmd(a.host,'stop',t('confirm.stopAgent'),t('confirm.stopAgentDesc'))));
-          actDiv.appendChild(mkBtn('btn-red',t('btn.uninstall'),()=>confirmCmd(a.host,'uninstall',t('confirm.uninstallAgent'),t('confirm.uninstallAgentDesc'))));
+          actDiv.appendChild(mkBtn('btn-yellow',t('btn.restart'),()=>confirmCmd(a.host,'restart',t('confirm.restartAgent'),t('confirm.restartAgentDesc'),a.agentId||a.AgentId)));
+          actDiv.appendChild(mkBtn('btn-ghost',t('btn.stop'),()=>confirmCmd(a.host,'stop',t('confirm.stopAgent'),t('confirm.stopAgentDesc'),a.agentId||a.AgentId)));
+          actDiv.appendChild(mkBtn('btn-red',t('btn.uninstall'),()=>confirmCmd(a.host,'uninstall',t('confirm.uninstallAgent'),t('confirm.uninstallAgentDesc'),a.agentId||a.AgentId)));
         }else{
-          actDiv.appendChild(mkBtn('btn-green',t('btn.start'),()=>confirmCmd(a.host,'start',t('confirm.startAgent'),t('confirm.startAgentDesc'))));
-          actDiv.appendChild(mkBtn('btn-ghost',t('btn.restart'),()=>confirmCmd(a.host,'restart',t('confirm.restartAgent'),'')));
-          actDiv.appendChild(mkBtn('btn-red',t('btn.uninstall'),()=>confirmCmd(a.host,'uninstall',t('confirm.uninstallAgent'),t('confirm.uninstallAgentDesc'))));
-          actDiv.appendChild(mkBtn('btn-ghost','\ud83d\uddd1 '+t('btn.fromList'),()=>removeAgentFromList(a.host, a.agentId||a.AgentId||""));
+          actDiv.appendChild(mkBtn('btn-green',t('btn.start'),()=>confirmCmd(a.host,'start',t('confirm.startAgent'),t('confirm.startAgentDesc'),a.agentId||a.AgentId)));
+          actDiv.appendChild(mkBtn('btn-ghost',t('btn.restart'),()=>confirmCmd(a.host,'restart',t('confirm.restartAgent'),'',a.agentId||a.AgentId)));
+          actDiv.appendChild(mkBtn('btn-red',t('btn.uninstall'),()=>confirmCmd(a.host,'uninstall',t('confirm.uninstallAgent'),t('confirm.uninstallAgentDesc'),a.agentId||a.AgentId)));
+          actDiv.appendChild(mkBtn('btn-ghost','\ud83d\uddd1 '+t('btn.fromList'),()=>removeAgentFromList(a.host, a.agentId||a.AgentId||'')));
         }
         actDiv.appendChild(mkBtn('btn-ghost','\ud83d\udcf7 '+t('btn.screenshots'),()=>confirmDataDelete('host-screenshots',t('data.deleteSs')+' '+a.host,t('data.deleteSsDesc'),a.host)));
         actDiv.appendChild(mkBtn('btn-ghost','\ud83d\udccb '+t('btn.events'),()=>confirmDataDelete('host-events',t('data.deleteEv')+' '+a.host,t('data.deleteEvDesc'),a.host)));
@@ -1200,8 +1259,8 @@ async function loadAgents(){
   }catch(e){list.innerHTML='<div class="empty" style="color:var(--red)">'+e.message+'</div>';}
 }
 
-function confirmCmd(host,cmd,title,desc){
-  pendingCmd={host,cmd};
+function confirmCmd(host,cmd,title,desc,agentId){
+  pendingCmd={host,cmd,agentId:agentId||''};
   document.getElementById('confirmTitle').textContent=title;
   document.getElementById('confirmDesc').textContent=desc;
   document.getElementById('confirmOkBtn').onclick=doConfirmedCmd;
@@ -1210,7 +1269,7 @@ function confirmCmd(host,cmd,title,desc){
 function closeConfirm(){document.getElementById('confirmOverlay').classList.remove('open');pendingCmd={host:'',cmd:''};pendingDataDelete={type:'',host:''};document.getElementById('confirmOkBtn').onclick=doConfirmedCmd;}
 async function doConfirmedCmd(){
   const {host,cmd}=pendingCmd;closeConfirm();
-  try{const r=await authFetch('/api/commands',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host,command:cmd,payload:''})});
+  try{const r=await authFetch('/api/commands',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({host,command:cmd,payload:'',agentId:host==='*'?'':pendingCmd.agentId||''})});
     if(!r.ok)throw new Error(await r.text());const d=await r.json();showToast(t('toast.commandSent',{cmd,id:d.id}),'success');setTimeout(loadAgents,1000);}
   catch(e){showToast(e.message,'error');}
 }
@@ -1287,6 +1346,92 @@ async function changePassword(){
     showToast(t('toast.passwordChanged'),'success');}
   catch(e){showToast(e.message,'error');}
 }
+// Navigate to Events tab filtered by specific agent
+function filterByAgent(host, agentId){
+  switchTab('events', document.querySelector('.tab'));
+  document.getElementById('fHost').value = host;
+  document.getElementById('fSearch').value = '';
+  evOffset = 0;
+  // Store agentId for filtering
+  window._filterAgentId = agentId;
+  loadEvents();
+}
+
+// Navigate to Screenshots tab filtered by specific agent
+function filterByAgentSS(host, agentId){
+  switchTab('screenshots', document.querySelectorAll('.tab')[1]);
+  document.getElementById('ssHost').value = host;
+  ssOffset = 0;
+  window._filterAgentIdSS = agentId;
+  loadScreenshots();
+}
+
+async function loadEmailConfig(){
+  try{
+    const d=await fetchJ('/api/email/config');
+    document.getElementById('emailSmtpHost').value=d.smtpHost||'';
+    document.getElementById('emailSmtpPort').value=d.smtpPort||587;
+    document.getElementById('emailUsername').value=d.username||'';
+    document.getElementById('emailFrom').value=d.from||'';
+    document.getElementById('emailTo').value=d.to||'';
+    document.getElementById('emailModules').value=(d.alertModules||[]).join(',');
+    const st=document.getElementById('emailStatus');
+    if(d.configured){st.textContent='✓ Configured → '+d.from+' → '+d.to;st.className='tg-status enabled';}
+    else{st.textContent='Not configured';st.className='tg-status disabled';}
+  }catch(e){console.error('loadEmailConfig',e);}
+}
+
+async function saveEmailConfig(){
+  const body={
+    smtpHost:document.getElementById('emailSmtpHost').value,
+    smtpPort:parseInt(document.getElementById('emailSmtpPort').value)||587,
+    enableSsl:true,
+    username:document.getElementById('emailUsername').value,
+    password:document.getElementById('emailPassword').value,
+    from:document.getElementById('emailFrom').value,
+    to:document.getElementById('emailTo').value,
+    alertModules:document.getElementById('emailModules').value
+  };
+  const r=await authFetch('/api/email/save',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const d=await r.json();
+  if(r.ok){showToast('Email config saved. Restart server to apply.','success');loadEmailConfig();}
+  else showToast(d.error||'Error','error');
+}
+
+async function testEmail(){
+  const r=await authFetch('/api/email/test',{method:'POST'});
+  const d=await r.json();
+  if(r.ok)showToast('Test email sent!','success');
+  else showToast(d.error||'Error sending test email','error');
+}
+
+async function loadAgentKeys(){
+  if(!isAdmin) return;
+  try{
+    const data = await fetchJ('/api/agent-keys');
+    const tbody = document.getElementById('agentKeysTbody');
+    if(!data||!data.length){
+      tbody.innerHTML='<tr><td colspan="5" style="color:var(--text3)">No enrolled agents</td></tr>';
+      return;
+    }
+    tbody.innerHTML = data.map(k=>`
+      <tr>
+        <td style="font-family:monospace;font-size:11px">${h(k.agentId||k.AgentId)}</td>
+        <td>${h(k.host||k.Host)}</td>
+        <td style="font-size:11px">${fmt(new Date(k.createdAt||k.CreatedAt))}</td>
+        <td><span style="color:${(k.revoked||k.Revoked)?'var(--red)':'var(--green)'}">${(k.revoked||k.Revoked)?'Revoked':'Active'}</span></td>
+        <td>${!(k.revoked||k.Revoked)?`<button class="btn btn-red btn-sm" onclick="revokeAgentKey('${h(k.agentId||k.AgentId)}')">Revoke</button>`:'—'}</td>
+      </tr>`).join('');
+  } catch(e){ console.error('loadAgentKeys',e); }
+}
+
+async function revokeAgentKey(agentId){
+  if(!confirm('Revoke key for agent '+agentId+'? Agent will need to re-enroll with the global API key.')) return;
+  const r = await authFetch('/api/agent-keys/'+encodeURIComponent(agentId), {method:'DELETE'});
+  if(r.ok){ showToast('Key revoked','success'); loadAgentKeys(); }
+  else showToast('Error revoking key','error');
+}
+
 async function checkTelegramStatus(){
   const el=document.getElementById('tgStatus'),modsEl=document.getElementById('tgModules');
   try{

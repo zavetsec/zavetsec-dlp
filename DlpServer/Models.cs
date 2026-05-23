@@ -226,3 +226,25 @@ public class AuditEntry
     public string Detail { get; set; } = "";
 }
 
+
+public class EmailConfig
+{
+    public string SmtpHost  { get; set; } = "";
+    public int    SmtpPort  { get; set; } = 587;
+    public bool   EnableSsl { get; set; } = true;
+    public string Username  { get; set; } = "";
+    public string Password  { get; set; } = "";
+    public string From      { get; set; } = "";
+    public string To        { get; set; } = "";
+    // Filter: only send alerts for these modules. Empty = send all alerts.
+    public string[] AlertModules { get; set; } = Array.Empty<string>();
+    public bool   SendAllAlerts  { get; set; } = false;
+}
+
+public class AgentKeyInfo
+{
+    public string AgentId   { get; set; } = "";
+    public string Host      { get; set; } = "";
+    public string CreatedAt { get; set; } = "";
+    public bool   Revoked   { get; set; }
+}
