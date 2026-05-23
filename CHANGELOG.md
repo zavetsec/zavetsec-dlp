@@ -8,6 +8,24 @@ Format: [Semantic Versioning](https://semver.org) — `MAJOR.MINOR.PATCH`
 
 ## [Unreleased]
 
+### Added
+- **Multi-monitor screenshots** — each screen captured independently in the same capture cycle;
+  files named `HHmmss_trigger_m1.jpg`, `_m2.jpg`; per-monitor blank screen detection
+- **Email alerts (SMTP)** — configurable via Management tab or `appsettings.json`; rate-limited
+  (1 per host+module per 5 min); supports TLS port 587 and SSL port 465; background send
+- **Certificate fingerprint pinning** — set `"serverFingerprint"` in agent `config.json`
+  (SHA-256 printed at server startup); agents reject connections to unrecognised certificates
+- **Live feed toggle** — ⬤ Live button in dashboard header; switches auto-refresh from 30s to 5s
+- **Per-agent API keys** — agents auto-enroll on first heartbeat and receive a unique key stored
+  in `config.json`; Management → Agent Keys shows all enrolled keys with revocation button;
+  revoked agents re-enroll automatically with global key; header: `X-Agent-Key`
+- **Watchdog timer** — checks every 60 seconds that LogShipper and ScreenshotShipper are running;
+  re-registers the ONLOGON scheduled task if it was deleted (basic tamper resistance)
+- **Email section in Management tab** — SMTP form with dark-theme inputs matching rest of UI;
+  Refresh / Save / Send Test buttons; settings saved directly to `appsettings.json`
+- **Database migration v8** — `agent_status` column in `hosts` table for three-color status indicator
+- **Database migration v9** — `agent_keys` table for per-agent authentication
+
 ### Planned
 - Per-agent authentication (unique key per agent)
 - Certificate fingerprint pinning

@@ -229,6 +229,11 @@ powershell Compress-Archive -Path "DlpServer\publish\*" ^
 | **HTTPS** | Self-signed certificate auto-generated on first run (RSA 2048, SHA-256, 10 years) |
 | **Remote Control** | Start / Stop / Restart / Uninstall agents directly from the dashboard |
 | **Three-color Status** | 🟢 Online (monitoring active) · 🟡 Stopped (process alive, monitoring paused) · ⚫ Offline |
+| **Multi-monitor Screenshots** | Each monitor captured independently; blank screen skipped; files tagged `_m1`, `_m2` |
+| **Email Alerts** | SMTP alerts with rate limiting; configurable modules; managed from Management tab |
+| **Certificate Fingerprint Pinning** | Agent verifies server cert SHA-256; fingerprint printed at server startup |
+| **Live Feed** | Dashboard ⬤ Live button — 5-second refresh instead of 30s |
+| **Per-agent API Key** | Auto-enrollment on first connect; per-agent revocation; stored in `config.json` |
 | **Agent Lifecycle Events** | `AGENT_ONLINE` on first connection, `AGENT_REMOVED` on dashboard removal, `AGENT_UNINSTALLED` on successful uninstall |
 | **Unique Agent ID** | Each agent generates a persistent 16-char hex ID on first run; stored in `config.json`, sent as `X-Agent-Id` header; scoped to events, screenshots, and commands — fully supports multiple machines with identical hostnames |
 | **Watchdog** | Checks every 60 s that internal components are alive; re-registers the scheduled task if deleted by an insider |
@@ -680,6 +685,8 @@ $pcs = (Get-ADComputer -Filter * `
 | `shipper.deleteLocalScreenshotsAfterUpload` | Delete local screenshot file after successful upload |
 | `shipper.allowInvalidCertificate` | Accept self-signed HTTPS certificates |
 | `shipper.agentId` | Unique agent identifier — **auto-generated on first run**, do not edit manually |
+| `shipper.agentKey` | Per-agent API key — **auto-saved on enrollment**, do not edit manually |
+| `shipper.serverFingerprint` | SHA-256 fingerprint of server certificate (hex, no colons); leave empty to skip pinning |
 | `storage.retentionLogDays` | Days to keep local encrypted logs |
 | `clipboard.sensitiveWords` | Words that trigger CLIPBOARD_ALERT |
 | `network.alertPorts` | TCP ports that trigger NETWORK_ALERT |
@@ -970,10 +977,12 @@ Auto-refresh every 30 seconds. Timestamps shown in the browser's local timezone.
 
 ### Management Tab (admin only)
 
-- Create / delete users
+- Create / delete users with role assignment (admin / viewer)
 - Password status column (OK / Change password)
 - Change your own password
-- Telegram: connection status, configured alert modules, send test notification
+- **Telegram:** connection status, configured alert modules, test notification
+- **Email (SMTP):** configure SMTP host, credentials, recipients, alert modules — saved directly to `appsettings.json`; takes effect after server restart
+- **Agent Keys:** table of enrolled agents with enrollment date and status; revoke individual agent keys without affecting others
 
 ---
 
@@ -1361,21 +1370,22 @@ Community contributions and pull requests are welcome.
 
 ### Security (high priority)
 
-- [ ] **Per-agent authentication** — unique API key per agent with server-side revocation; currently all agents share one key (if one agent's config is compromised, the key must be rotated on all agents)
-- [ ] **Certificate fingerprint pinning** — instead of `allowInvalidCertificate: true`, agents verify the server certificate by its SHA-256 fingerprint; eliminates MITM risk on untrusted networks
+- [x] **Per-agent authentication** — each agent auto-enrolls on first connect and receives a unique 64-hex key stored in `config.json`; revocable per-agent from Management → Agent Keys; falls back to global key for re-enrollment
+- [x] **Certificate fingerprint pinning** — agents verify server certificate by SHA-256 fingerprint (`"serverFingerprint"` in `config.json`); server prints fingerprint on startup; eliminates MITM risk on untrusted networks
 - [ ] **Event integrity chain** — HMAC chaining of event batches for tamper-evident forensic logs
 - [ ] **Code signing** — signed agent binary to eliminate Windows Defender exclusion requirement
 - [ ] **Explicit consent logging** — employee acknowledgement artifact storage for GDPR compliance
 
 ### Features
 
-- [ ] **Multi-monitor screenshots** — capture all screens, not just screen 0
+- [x] **Multi-monitor screenshots** — each screen captured separately; files named `HHmmss_trigger_m1.jpg`, `_m2.jpg`; blank monitor detection per screen
+- [x] **Email alerts (SMTP)** — configurable from Management tab; rate-limited (1 per host+module per 5 min); supports TLS (587) and SSL (465); background send
+- [x] **Live feed toggle** — ⬤ Live button in dashboard header; switches refresh from 30s to 5s
 - [ ] **PostgreSQL backend** — for deployments exceeding SQLite's practical limits (~50 GB)
-- [ ] **WebSocket live feed** — real-time event stream in the dashboard without page refresh
+- [ ] **WebSocket live feed** — true real-time event stream (no polling)
 - [ ] **SIEM integration** — Syslog/CEF output for Splunk, QRadar, Elastic SIEM
 - [ ] **Active Directory integration** — auto-populate host/user metadata from AD
 - [ ] **Agent auto-update** — push new agent binary from server via command channel
-- [ ] **Alert escalation** — multi-level alerts (info → warning → critical) with email support
 - [ ] **Screenshot compression policies** — tiered storage, per-host quotas, archiving
 - [x] **Agent watchdog** — checks every 60s that shippers are alive, re-registers scheduled task if deleted (basic tamper detection)
 - [ ] **Advanced tamper resistance** — protected process, kernel callbacks, anti-uninstall (requires driver/kernel-mode component)
