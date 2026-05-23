@@ -278,7 +278,9 @@ app.MapPost("/api/auth/change-password", async (HttpContext ctx, EventStore db) 
             new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         if (req == null) return Results.BadRequest();
 
-        var (ok, error) = db.ChangePassword(s!.Username, req.OldPassword, req.NewPassword);
+        string curToken = ctx.Request.Headers["Authorization"]
+            .FirstOrDefault()?.Replace("Bearer ", "") ?? "";
+        var (ok, error) = db.ChangePassword(s!.Username, req.OldPassword, req.NewPassword, curToken);
         if (!ok) return Results.BadRequest(new { error });
         string pwIp = ctx.Request.Headers["X-Forwarded-For"].FirstOrDefault()
                    ?? ctx.Connection.RemoteIpAddress?.ToString() ?? "unknown";

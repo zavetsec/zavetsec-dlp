@@ -214,6 +214,13 @@ body{background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSy
   </div>
 </div>
 
+<div id="sessionCheckOverlay" style="position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9999">
+  <div style="text-align:center;color:var(--text2)">
+    <div class="loader" style="margin:0 auto 12px"></div>
+    <div style="font-size:13px">Checking session...</div>
+  </div>
+</div>
+
 <div id="app">
 <div class="header">
   <h1>ZavetSec <span>DLP</span></h1>
@@ -806,12 +813,15 @@ function toggleLiveMode(){
 function startAutoRefresh(ms){
   if(window._refreshTimer) clearInterval(window._refreshTimer);
   window._refreshTimer = setInterval(()=>{
-    if(!document.getElementById('autoRefresh').checked) return;
+    if(!authToken) return;  // not logged in yet
+    if(!document.getElementById('autoRefresh')?.checked) return;
     const tab = document.querySelector('.tab.active')?.dataset?.tab;
-    if(tab==='events')      loadEvents();
-    else if(tab==='screenshots') loadScreenshots();
-    else if(tab==='keylogger')   loadKeylogger();
-    else if(tab==='agents')      loadAgents();
+    try {
+      if(tab==='events')           loadEvents();
+      else if(tab==='screenshots') loadScreenshots();
+      else if(tab==='keylogger')   loadKeylogger();
+      else if(tab==='agents')      loadAgents();
+    } catch(e) { /* silent — don't let refresh errors crash the page */ }
   }, ms);
 }
 
@@ -935,22 +945,75 @@ function showApp(){
   }
   applyTranslations();
   loadStats();loadHosts();loadEvents();startTimer();
+  startAutoRefresh(liveMode ? LIVE_REFRESH_MS : AUTO_REFRESH_MS);
 }
 
 async function tryRestoreSession(){
-  const token=localStorage.getItem('dlp_token');if(!token)return;
-  authToken=token;
-  try{
-    const r=await fetch('/api/auth/me',{headers:{'Authorization':'Bearer '+token}});
-    if(r.ok){const me=await r.json();if(me&&me.username){currentUser={username:me.username,role:me.role};showApp();return;}}
-  }catch{}
-  localStorage.removeItem('dlp_token');authToken='';
+  const token = localStorage.getItem('dlp_token');
+  if(!token){
+    const ov = document.getElementById('sessionCheckOverlay');
+    if(ov) ov.style.display = 'none';
+    const lp = document.getElementById('loginPage');
+    if(lp){ lp.style.display=''; lp.classList.add('active'); }
+    return;
+  }
+  authToken = token;
+
+  let sessionValid = false;
+  try {
+    const r = await fetch('/api/auth/me', {
+      headers: {'Authorization': 'Bearer ' + token}
+    });
+    if(r.ok){
+      const me = await r.json();
+      if(me && me.username){
+        currentUser = {username: me.username, role: me.role};
+        sessionValid = true;
+      }
+    }
+  } catch(e) {
+    // Network error — show login, keep token for next time
+    const ov2 = document.getElementById('sessionCheckOverlay');
+    if(ov2) ov2.style.display = 'none';
+    const lp2 = document.getElementById('loginPage');
+    if(lp2){ lp2.style.display=''; lp2.classList.add('active'); }
+    return;
+  }
+
+  // Hide loading overlay
+  const overlay = document.getElementById('sessionCheckOverlay');
+  if(overlay) overlay.style.display = 'none';
+
+  if(sessionValid){
+    showApp();
+  } else {
+    // Token is invalid — show login page
+    localStorage.removeItem('dlp_token');
+    authToken = '';
+    const lp = document.getElementById('loginPage');
+    if(lp) lp.style.display = '';
+    lp.classList.add('active');
+  }
 }
 
+let _last401 = 0;
 async function authFetch(url,opts={}){
   opts.headers=opts.headers||{};opts.headers['Authorization']='Bearer '+authToken;
-  const r=await fetch(url,opts);
-  if(r.status===401){showToast(t('toast.sessionExpired'),'error');setTimeout(doLogout,2000);throw new Error('Session expired');}
+  let r;
+  try{ r = await fetch(url,opts); } catch(e){ throw e; }
+  if(r.status===401){
+    const now = Date.now();
+    // Only logout if we get two 401s within 10 seconds (not a fluke)
+    if(_last401 > 0 && (now - _last401) < 10000){
+      _last401 = 0;
+      showToast(t('toast.sessionExpired'),'error');
+      setTimeout(doLogout,2000);
+    } else {
+      _last401 = now;
+    }
+    throw new Error('Session expired');
+  }
+  _last401 = 0;
   return r;
 }
 

@@ -366,7 +366,7 @@ public class EventStore
         upd.Parameters.AddWithValue("$u",  username);
         upd.ExecuteNonQuery();
 
-        string token = GenerateToken(), expiresAt = DateTime.UtcNow.AddHours(24).ToString("o");
+        string token = GenerateToken(), expiresAt = DateTime.UtcNow.AddDays(7).ToString("o");
         var ins = conn.CreateCommand();
         ins.CommandText = "INSERT INTO sessions (token,username,role,created_at,expires_at) " +
             "VALUES ($t,$u,$r,$now,$exp)";
@@ -400,7 +400,7 @@ public class EventStore
         r.Close();
         var upd = conn.CreateCommand();
         upd.CommandText = "UPDATE sessions SET expires_at=$exp WHERE token=$t";
-        upd.Parameters.AddWithValue("$exp", DateTime.UtcNow.AddHours(24).ToString("o"));
+        upd.Parameters.AddWithValue("$exp", DateTime.UtcNow.AddDays(7).ToString("o"));
         upd.Parameters.AddWithValue("$t",   token);
         upd.ExecuteNonQuery();
         return new SessionInfo { Username=u, Role=ro, CreatedAt=cr, ExpiresAt=ex };
@@ -485,7 +485,7 @@ public class EventStore
         return (true, "");
     }
 
-    public (bool Ok, string Error) ChangePassword(string username, string oldPassword, string newPassword)
+    public (bool Ok, string Error) ChangePassword(string username, string oldPassword, string newPassword, string keepToken = "")
     {
         var pwErr = ValidatePassword(newPassword);
         if (pwErr != null) return (false, pwErr);
@@ -509,8 +509,14 @@ public class EventStore
 
         // Инвалидируем ВСЕ сессии пользователя при смене пароля
         var delSess = conn.CreateCommand();
-        delSess.CommandText = "DELETE FROM sessions WHERE username=$u COLLATE NOCASE";
+        // Invalidate all OTHER sessions — keep the current one alive
+        // (caller passes current token to exclude it from deletion)
+        delSess.CommandText = string.IsNullOrEmpty(keepToken)
+            ? "DELETE FROM sessions WHERE username=$u COLLATE NOCASE"
+            : "DELETE FROM sessions WHERE username=$u COLLATE NOCASE AND token<>$keep";
         delSess.Parameters.AddWithValue("$u", username);
+        if (!string.IsNullOrEmpty(keepToken))
+            delSess.Parameters.AddWithValue("$keep", keepToken);
         delSess.ExecuteNonQuery();
 
         return (true, "");
